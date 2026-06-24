@@ -5,7 +5,7 @@ class UserProfile {
   final String role;
   final DateTime createdAt;
   final bool approved;
-  final String password;
+  final String? password;
 
   const UserProfile({
     required this.id,
@@ -14,7 +14,7 @@ class UserProfile {
     required this.role,
     required this.createdAt,
     required this.approved,
-    required this.password,
+    this.password,
   });
 
   UserProfile copyWith({

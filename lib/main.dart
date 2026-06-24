@@ -6,20 +6,19 @@ import 'screens/auth_register_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/landing_screen.dart';
 import 'screens/pending_approval_screen.dart';
+import 'supabase_service.dart';
 
-void main() {
-  runApp(const ArgmacApp());
-}
-
-class ArgmacApp extends StatefulWidget {
-  const ArgmacApp({Key? key}) : super(key: key);
-
-  @override
-  State<ArgmacApp> createState() => _ArgmacAppState();
-}
-
-class _ArgmacAppState extends State<ArgmacApp> {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseService.initialize();
   final appState = AppState();
+  await appState.restoreSession();
+  runApp(ArgmacApp(appState: appState));
+}
+
+class ArgmacApp extends StatelessWidget {
+  final AppState appState;
+  const ArgmacApp({Key? key, required this.appState}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

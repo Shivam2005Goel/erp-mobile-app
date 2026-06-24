@@ -4,24 +4,14 @@ import 'package:flutter/material.dart';
 
 import 'models/module.dart';
 import 'models/user_profile.dart';
+import 'supabase_service.dart';
 
 class AppState extends ChangeNotifier {
   UserProfile? currentUser;
   bool loading = false;
   String? authError;
-  String? pendingApprovalEmail;
 
-  final List<UserProfile> _users = [
-    UserProfile(
-      id: 'admin-1',
-      fullName: 'Argmac Administrator',
-      email: 'admin@argmac.com',
-      role: 'admin',
-      approved: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 1400)),
-      password: 'Admin@123',
-    ),
-  ];
+  AppState();
 
   static const availableRoles = [
     'admin',
@@ -41,23 +31,15 @@ class AppState extends ChangeNotifier {
 
   Future<void> signInWithEmail(String email, String password) async {
     _setLoading(true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    final found = _users.firstWhere(
-      (user) => user.email.toLowerCase() == email.toLowerCase(),
-      orElse: () => throw Exception('No account found for this email.'),
-    );
-    if (!found.approved) {
+    try {
+      currentUser = await SupabaseService.signIn(email, password);
+      authError = null;
+    } catch (err) {
+      authError = err.toString().replaceFirst('Exception: ', '');
+      rethrow;
+    } finally {
       _setLoading(false);
-      throw Exception('Registration pending approval.');
     }
-    if (found.password != password) {
-      _setLoading(false);
-      throw Exception('Invalid email or password.');
-    }
-    currentUser = found;
-    authError = null;
-    pendingApprovalEmail = null;
-    _setLoading(false);
   }
 
   Future<String> signUpWithEmail(
@@ -67,76 +49,48 @@ class AppState extends ChangeNotifier {
     String role,
   ) async {
     _setLoading(true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    final normalized = email.toLowerCase();
-    final existing = _users
-        .where((user) => user.email.toLowerCase() == normalized)
-        .toList();
-    if (existing.isNotEmpty && existing.first.approved) {
+    try {
+      await SupabaseService.signUp(email, password, fullName, role);
+      authError = null;
+      return 'approved';
+    } catch (err) {
+      authError = err.toString().replaceFirst('Exception: ', '');
+      rethrow;
+    } finally {
       _setLoading(false);
-      throw Exception('A registered account already exists.');
     }
-    final profile = UserProfile(
-      id: 'user-${_users.length + 1}',
-      fullName: fullName,
-      email: normalized,
-      role: role,
-      approved: false,
-      createdAt: DateTime.now(),
-      password: password,
-    );
-    _users.removeWhere((user) => user.email.toLowerCase() == normalized);
-    _users.add(profile);
-    pendingApprovalEmail = normalized;
-    currentUser = null;
-    authError = null;
-    _setLoading(false);
-    return 'pending';
   }
 
   Future<void> signInWithGoogle() async {
     _setLoading(true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    const googleEmail = 'google.user@argmac.com';
-    final existing = _users.firstWhere(
-      (user) => user.email.toLowerCase() == googleEmail,
-      orElse: () => null,
-    );
-    if (existing == null) {
-      final profile = UserProfile(
-        id: 'guser-${_users.length + 1}',
-        fullName: 'Google Guest',
-        email: googleEmail,
-        role: 'sales',
-        approved: false,
-        createdAt: DateTime.now(),
-        password: 'google-oauth',
-      );
-      _users.add(profile);
-      pendingApprovalEmail = googleEmail;
-      currentUser = null;
+    try {
+      currentUser = await SupabaseService.signInWithGoogle();
       authError = null;
+    } catch (err) {
+      authError = err.toString().replaceFirst('Exception: ', '');
+      rethrow;
+    } finally {
       _setLoading(false);
-      return;
     }
-    if (!existing.approved) {
-      pendingApprovalEmail = googleEmail;
-      currentUser = null;
-      authError = null;
-      _setLoading(false);
-      return;
-    }
-    currentUser = existing;
-    pendingApprovalEmail = null;
-    authError = null;
-    _setLoading(false);
   }
 
-  void signOut() {
+  Future<void> signOut() async {
+    await SupabaseService.signOut();
     currentUser = null;
     authError = null;
-    pendingApprovalEmail = null;
     notifyListeners();
+  }
+
+  Future<void> restoreSession() async {
+    _setLoading(true);
+    try {
+      final session = SupabaseService.client.auth.currentSession;
+      if (session?.user != null) {
+        currentUser = await SupabaseService.fetchProfile(session!.user!.id);
+      }
+    } finally {
+      _setLoading(false);
+    }
   }
 
   bool canAccessCurrentModule(AppModule module) {

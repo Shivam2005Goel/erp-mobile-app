@@ -123,7 +123,7 @@ class AppModule {
     ),
   ];
 
-  static AppModule? findByRoute(String route) {
+  static AppModule findByRoute(String route) {
     return all.firstWhere(
       (module) => module.route == route,
       orElse: () => AppModule(

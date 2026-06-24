@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import '../widgets/app_drawer.dart';
 
 class AuthLoginScreen extends StatefulWidget {
   const AuthLoginScreen({Key? key}) : super(key: key);
@@ -55,21 +54,22 @@ class _AuthLoginScreenState extends State<AuthLoginScreen> {
       _error = null;
     });
 
+    final appState = AppStateScope.of(context);
     try {
-      await AppStateScope.of(context).signInWithGoogle();
-      if (AppStateScope.of(context).pendingApprovalEmail != null) {
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/pending');
-        }
+      await appState.signInWithGoogle();
+      if (mounted && appState.pendingApprovalEmail != null) {
+        Navigator.pushReplacementNamed(context, '/pending');
         return;
       }
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/dashboard');
       }
     } catch (err) {
-      setState(() {
-        _error = err.toString().replaceFirst('Exception: ', '');
-      });
+      if (mounted) {
+        setState(() {
+          _error = err.toString().replaceFirst('Exception: ', '');
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {

@@ -51,6 +51,13 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
           _pendingApproval = true;
           _registeredEmail = _emailController.text.trim();
         });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Account created. Please sign in.')),
+          );
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       }
     } catch (err) {
       setState(() {

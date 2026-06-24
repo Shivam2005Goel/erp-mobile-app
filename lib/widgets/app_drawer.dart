@@ -34,19 +34,19 @@ class AppDrawer extends StatelessWidget {
                 children: [
                   Text(
                     'Argmac ERP',
-                    style: Theme.of(context).textTheme.headline6?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     state.currentUser?.fullName ?? 'Guest',
-                    style: Theme.of(context).textTheme.bodyText2,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     state.currentUser?.role.toUpperCase() ?? 'GUEST',
-                    style: Theme.of(context).textTheme.caption,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
