@@ -137,27 +137,94 @@ class OrdersModule extends StatelessWidget {
         fields: () => const [
           FieldSpec('order_name',    'Order name',    required: true),
           FieldSpec('particulars',   'Particulars',   type: FieldType.multiline),
-          FieldSpec('priority',      'Priority',      type: FieldType.dropdown, options: ['High', 'Medium', 'Low']),
+          FieldSpec('priority',      'Priority',      type: FieldType.dropdown,
+              options: ['HIGH PRIORITY', 'MEDIUM PRIORITY', 'LOW PRIORITY']),
           FieldSpec('order_date',    'Order date',    type: FieldType.date),
           FieldSpec('delivery_date', 'Delivery date', type: FieldType.date),
           FieldSpec('notes',         'Notes',         type: FieldType.multiline),
         ],
-        tile: (p, onEdit, onDelete) => Card(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: ListTile(
-            onTap: onEdit,
-            leading: const Icon(Icons.priority_high, color: kDanger),
-            title: Text(str(p['order_name'])),
-            subtitle: Text([
-              if ((p['particulars']?.toString().trim() ?? '').isNotEmpty) p['particulars'],
-              'Deliver by ${fmtDate(p['delivery_date'])}',
-            ].join(' • ')),
-            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              StatusChip(str(p['priority'], 'normal'), color: statusColor(p['priority']?.toString())),
-              RowMenu(onEdit: onEdit, onDelete: onDelete),
-            ]),
-          ),
-        ),
+        tile: (p, onEdit, onDelete) {
+          final pri = (p['priority'] ?? '').toString().toUpperCase();
+          final Color priColor;
+          final String priLabel;
+          if (pri.contains('HIGH')) {
+            priColor = kDanger;
+            priLabel = 'HIGH';
+          } else if (pri.contains('MEDIUM')) {
+            priColor = kWarning;
+            priLabel = 'MEDIUM';
+          } else if (pri.contains('LOW')) {
+            priColor = kSuccess;
+            priLabel = 'LOW';
+          } else {
+            priColor = kInfo;
+            priLabel = pri.isNotEmpty ? pri : 'NORMAL';
+          }
+
+          final particulars = (p['particulars'] ?? '').toString().trim();
+          final firstLine = particulars.isEmpty
+              ? null
+              : particulars.split('\n').first.trim();
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onEdit,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: priColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: priColor.withValues(alpha: 0.4)),
+                        ),
+                        child: Text(priLabel,
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: priColor,
+                                letterSpacing: 0.5)),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(str(p['order_name']),
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      RowMenu(onEdit: onEdit, onDelete: onDelete),
+                    ]),
+                    if (firstLine != null) ...[
+                      const SizedBox(height: 4),
+                      Text(firstLine,
+                          style: const TextStyle(fontSize: 12.5, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      const Icon(Icons.calendar_today_outlined, size: 13, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text('Ordered: ${fmtDate(p['order_date'])}',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.local_shipping_outlined, size: 13, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text('Deliver: ${fmtDate(p['delivery_date'])}',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ]),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       );
 
   // ── Tab: Pending materials ───────────────────────────────────────────────
