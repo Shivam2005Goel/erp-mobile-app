@@ -81,7 +81,20 @@ class _InventoryModuleState extends State<InventoryModule> {
     _load();
   }
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(msg),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
+  }
+
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() { _loading = true; _error = null; });
     try {
       final r = await Future.wait([
@@ -123,24 +136,28 @@ class _InventoryModuleState extends State<InventoryModule> {
       ),
     );
     ctrl.dispose();
-    if (name == null || name.isEmpty) return;
+    if (name == null || name.isEmpty || !mounted) return;
     try {
       await _repo.createProduct(name);
       await _load();
       if (mounted) setState(() => _sel = name);
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      final msg = '$e'.contains('23505')
+          ? '"$name" already exists. Choose a different name.'
+          : 'Failed to add product.\n\n$e';
+      _showError(msg);
     }
   }
 
   // ── DELETE PRODUCT ───────────────────────────────────────────────────────
   Future<void> _deleteProduct(String name) async {
     if (!await confirmDelete(context, '"$name"')) return;
+    if (!mounted) return;
     try {
       await _repo.deleteProduct(name);
       await _load();
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      _showError('Failed to delete product.\n\n$e');
     }
   }
 
@@ -182,7 +199,7 @@ class _InventoryModuleState extends State<InventoryModule> {
                 ? data.catsFor(_sel!).first['label']
                 : null,
         });
-    if (res == null) return;
+    if (res == null || !mounted) return;
     // Map label → value slug
     final lbl = res['category']?.toString();
     if (lbl != null) {
@@ -196,7 +213,7 @@ class _InventoryModuleState extends State<InventoryModule> {
       await _repo.create('inventory_items', res);
       await _load();
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      _showError('Failed to add item.\n\n$e');
     }
   }
 
@@ -235,35 +252,16 @@ class _InventoryModuleState extends State<InventoryModule> {
       Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         child: Column(children: [
-          // Row 1: ADD PRODUCT (full width)
-          _ActionBtn(
-            label: '+ ADD PRODUCT',
-            icon: Icons.inventory_2_outlined,
-            subtitle: 'Create a new product category',
-            onPressed: _addProduct,
-          ),
-          const SizedBox(height: 8),
-          // Row 2: ADD TYPE + ADD ITEM side by side
+          // Row 1: ADD PRODUCT + Refresh
           Row(children: [
             Expanded(
               child: _ActionBtn(
-                label: '+ ADD TYPE',
-                icon: Icons.category_outlined,
-                subtitle: 'Manage item types',
-                onPressed: _manageTypes,
+                label: '+ ADD PRODUCT',
+                icon: Icons.inventory_2_outlined,
+                onPressed: _addProduct,
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: _ActionBtn(
-                label: '+ ADD ITEM',
-                icon: Icons.add_box_outlined,
-                subtitle: 'Add inventory item',
-                onPressed: _addItem,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Refresh icon
             Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Theme.of(context).dividerColor),
@@ -273,6 +271,25 @@ class _InventoryModuleState extends State<InventoryModule> {
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Refresh',
                 onPressed: _load,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          // Row 2: ADD TYPE + ADD ITEM (full half-width each)
+          Row(children: [
+            Expanded(
+              child: _ActionBtn(
+                label: '+ ADD TYPE',
+                icon: Icons.category_outlined,
+                onPressed: _manageTypes,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _ActionBtn(
+                label: '+ ADD ITEM',
+                icon: Icons.add_box_outlined,
+                onPressed: _addItem,
               ),
             ),
           ]),
@@ -337,7 +354,7 @@ class _InventoryModuleState extends State<InventoryModule> {
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.95,
+                  childAspectRatio: 0.82,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),
@@ -363,51 +380,29 @@ class _InventoryModuleState extends State<InventoryModule> {
 class _ActionBtn extends StatelessWidget {
   final String label;
   final IconData icon;
-  final String? subtitle;
   final VoidCallback onPressed;
 
   const _ActionBtn({
     required this.label,
     required this.icon,
-    this.subtitle,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: kBrand,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
-        onPressed: onPressed,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4)),
-                if (subtitle != null)
-                  Text(subtitle!,
-                      style: const TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.w400,
-                          color: Colors.white70)),
-              ],
-            ),
-          ],
-        ),
+    return FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: kBrand,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        minimumSize: const Size(double.infinity, 44),
       ),
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
     );
   }
 }
@@ -487,7 +482,7 @@ class _CategoryCard extends StatelessWidget {
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -637,13 +632,25 @@ class _ManageTypesDialogState extends State<_ManageTypesDialog> {
     super.dispose();
   }
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(msg),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
+  }
+
   Future<void> _delete(Map<String, dynamic> t) async {
     setState(() => _busy = true);
     try {
       await widget.repo.deleteCategory(t['id'].toString());
       setState(() => _types.removeWhere((x) => x['id'] == t['id']));
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      _showError('Failed to delete type.\n\n$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -664,8 +671,7 @@ class _ManageTypesDialogState extends State<_ManageTypesDialog> {
       // If a product is selected, also link this type to it
       if (widget.selectedProduct != null) {
         try {
-          await widget.repo
-              .create('product_types', {
+          await widget.repo.create('product_types', {
             'product_name': widget.selectedProduct,
             'category_value': slug,
           });
@@ -677,7 +683,7 @@ class _ManageTypesDialogState extends State<_ManageTypesDialog> {
         _pickedColor = _kSwatches[0];
       });
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      _showError('Failed to add type.\n\n$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -948,6 +954,18 @@ class _ItemsScreenState extends State<_ItemsScreen> {
     return res;
   }
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(msg),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
+  }
+
   Future<void> _add() async {
     final res = await showRecordForm(context,
         title: 'ADD INVENTORY ITEM',
@@ -956,38 +974,37 @@ class _ItemsScreenState extends State<_ItemsScreen> {
           'category': widget.catLabel,
           'qty_till_date': 0,
         });
-    if (res == null) return;
+    if (res == null || !mounted) return;
     try {
       await widget.repo
           .create('inventory_items', _fromForm(res, widget.catValue));
       await _loadItems();
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      _showError('Failed to add item.\n\n$e');
     }
   }
 
   Future<void> _edit(Map<String, dynamic> item) async {
     final res = await showRecordForm(context,
         title: 'EDIT ITEM', fields: _fields, initial: _toForm(item));
-    if (res == null) return;
+    if (res == null || !mounted) return;
     try {
       await widget.repo.updateRow('inventory_items', 'id', item['id'],
           _fromForm(res, item['category'] ?? widget.catValue));
       await _loadItems();
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      _showError('Failed to update item.\n\n$e');
     }
   }
 
   Future<void> _delete(Map<String, dynamic> item) async {
-    if (!await confirmDelete(context, str(item['color'], 'this item'))) {
-      return;
-    }
+    if (!await confirmDelete(context, str(item['color'], 'this item'))) return;
+    if (!mounted) return;
     try {
       await widget.repo.deleteRow('inventory_items', 'id', item['id']);
       await _loadItems();
     } catch (e) {
-      if (mounted) toast(context, 'Failed: $e');
+      _showError('Failed to delete item.\n\n$e');
     }
   }
 
