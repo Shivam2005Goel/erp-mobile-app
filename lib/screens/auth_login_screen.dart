@@ -15,8 +15,48 @@ class _AuthLoginScreenState extends State<AuthLoginScreen> {
   String? _error;
   bool _loading = false;
 
+  AppState? _appState;
+  bool _wired = false;
+  bool _navigating = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_wired) {
+      _appState = AppStateScope.of(context);
+      _appState!.addListener(_onAuthChanged);
+      _wired = true;
+    }
+  }
+
+  /// Single source of navigation truth — handles both inline email sign-in and
+  /// the asynchronous Google OAuth return (delivered via the auth listener).
+  void _onAuthChanged() {
+    if (!mounted) return;
+    final s = _appState!;
+    if (s.currentUser != null) {
+      _go('/dashboard');
+    } else if (s.needsRoleSelection) {
+      _go('/role-selection');
+    } else if (s.pendingApprovalEmail != null) {
+      _go('/pending');
+    } else if (s.authError != null) {
+      setState(() {
+        _error = s.authError;
+        _loading = false;
+      });
+    }
+  }
+
+  void _go(String route) {
+    if (_navigating) return;
+    _navigating = true;
+    Navigator.pushReplacementNamed(context, route);
+  }
+
   @override
   void dispose() {
+    if (_wired) _appState!.removeListener(_onAuthChanged);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -27,24 +67,14 @@ class _AuthLoginScreenState extends State<AuthLoginScreen> {
       _loading = true;
       _error = null;
     });
-
     try {
-      await AppStateScope.of(
-        context,
-      ).signInWithEmail(_emailController.text.trim(), _passwordController.text);
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      }
-    } catch (err) {
-      setState(() {
-        _error = err.toString().replaceFirst('Exception: ', '');
-      });
+      // Navigation is handled by _onAuthChanged once the profile resolves.
+      await AppStateScope.of(context)
+          .signInWithEmail(_emailController.text.trim(), _passwordController.text);
+    } catch (_) {
+      // _onAuthChanged surfaces pending/error states.
     } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -53,26 +83,13 @@ class _AuthLoginScreenState extends State<AuthLoginScreen> {
       _loading = true;
       _error = null;
     });
-
-    final appState = AppStateScope.of(context);
     try {
-      await appState.signInWithGoogle();
-      if (mounted && appState.pendingApprovalEmail != null) {
-        Navigator.pushReplacementNamed(context, '/pending');
-        return;
-      }
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      }
+      await AppStateScope.of(context).signInWithGoogle();
+      // Control returns via the OAuth deep link; _onAuthChanged navigates.
     } catch (err) {
       if (mounted) {
         setState(() {
           _error = err.toString().replaceFirst('Exception: ', '');
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
           _loading = false;
         });
       }
@@ -146,9 +163,22 @@ class _AuthLoginScreenState extends State<AuthLoginScreen> {
                         : const Text('Sign In'),
                   ),
                   const SizedBox(height: 14),
-                  OutlinedButton(
+                  Row(children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text('or',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                    const Expanded(child: Divider()),
+                  ]),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
                     onPressed: _loading ? null : _signInWithGoogle,
-                    child: const Text('Continue with Google'),
+                    icon: const Icon(Icons.login, size: 18),
+                    label: const Text('Continue with Google'),
+                    style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
                   ),
                   const SizedBox(height: 22),
                   Row(

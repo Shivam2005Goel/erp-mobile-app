@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.example.my_first_app"
-    compileSdk = flutter.compileSdkVersion
+    // Some plugins (file_picker, etc.) require compiling against API 36+.
+    compileSdk = maxOf(36, flutter.compileSdkVersion)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -19,7 +20,10 @@ android {
         applicationId = "com.example.my_first_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Raised above flutter.minSdkVersion: file_picker / url_launcher and
+        // their transitive plugins (flutter_plugin_android_lifecycle) require
+        // at least API 23.
+        minSdk = maxOf(23, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

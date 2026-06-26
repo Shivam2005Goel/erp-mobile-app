@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/module.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/notification_bell.dart';
+import 'modules/module_registry.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -13,12 +15,18 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   AppModule _currentModule = AppModule.all.first;
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    final state = AppStateScope.of(context);
-    _currentModule = AppModule.findByRoute(state.dashboardHomeRoute());
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Inherited widgets (AppStateScope) are only safe to read here, not in
+    // initState(). Set the landing module once.
+    if (!_initialized) {
+      _initialized = true;
+      final state = AppStateScope.of(context);
+      _currentModule = AppModule.findByRoute(state.dashboardHomeRoute());
+    }
   }
 
   void _navigateToModule(AppModule module) {
@@ -26,6 +34,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _currentModule = module;
     });
     Navigator.pop(context);
+  }
+
+  /// Switches the active module by route (used by notification deep-links).
+  void _navigateToRoute(String route) {
+    final base = route.split('?').first;
+    setState(() => _currentModule = AppModule.findByRoute(base));
   }
 
   @override
@@ -40,8 +54,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: Text(_currentModule.name),
         actions: [
+          NotificationBell(onNavigate: _navigateToRoute),
+          IconButton(
+            icon: Icon(state.themeMode == ThemeMode.dark
+                ? Icons.light_mode_outlined
+                : Icons.dark_mode_outlined),
+            tooltip: state.themeMode == ThemeMode.dark
+                ? 'Light mode'
+                : 'Dark mode',
+            onPressed: state.toggleTheme,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
             onPressed: () {
               state.signOut();
               Navigator.pushNamedAndRemoveUntil(
@@ -67,43 +92,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
-              border: Border(
-                bottom: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Workspace',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _currentModule.description,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final homePath = state.dashboardHomeRoute();
-                    final homeModule = AppModule.findByRoute(homePath);
-                    setState(() => _currentModule = homeModule);
-                  },
-                  child: const Text('Home'),
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -125,36 +113,7 @@ class _ModuleView extends StatelessWidget {
     final state = AppStateScope.of(context);
     final accessible = state.canAccessCurrentModule(module);
     return accessible
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Welcome to ${module.name}',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                module.description,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(height: 1.5),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'This module is in progress. Implement the ${module.name} workflows, charts and listings here.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            ],
-          )
+        ? buildModuleView(module.route)
         : Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
