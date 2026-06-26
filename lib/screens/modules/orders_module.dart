@@ -10,62 +10,55 @@ const _leadTypes = [
   'Website', 'Instagram', 'Google', 'Reference', 'CasinoCart', 'Old Client', 'Walk In',
 ];
 const _clientCategories = ['Architect', 'Builder', 'Personal Home'];
-const _currencies = ['INR', 'USD', 'EUR', 'GBP', 'AED'];
-const _orderStatuses = ['Initial Stage', 'In progress', 'Completed'];
+const _currencies       = ['INR', 'USD', 'EUR', 'GBP', 'AED'];
+const _orderStatuses    = ['Initial Stage', 'In progress', 'Completed'];
 const _productionStages = [
   'New / Initial', 'Carpentry', 'Paint Shop', 'Packaging', 'Dispatch', 'Installed / Delivered',
 ];
 const _finishOptions = [
-  'Veneer', 'Suede', 'PU Paint', 'Leather', 'Laminate', 'Profile', 'Felt/Cloth', 'Pocket', 'Slate',
+  'Veneer', 'Suede', 'PU Paint', 'Leather', 'Laminate',
+  'Profile', 'Felt/Cloth', 'Pocket', 'Slate',
 ];
 
 List<FieldSpec> _orderFields() => const [
-  // ── Client / Contact ──────────────────────────────────────────────────
-  FieldSpec('client_name',       'Client Name',       required: true),
-  FieldSpec('company_name',      'Company Name'),
-  FieldSpec('location',          'Location'),
-  FieldSpec('country',           'Country'),
-  FieldSpec('contact_number',    'Contact Number'),
-  FieldSpec('email',             'Email'),
-  // ── Product ───────────────────────────────────────────────────────────
-  FieldSpec('products',          'Products'),
-  FieldSpec('product_name',      'Product Name'),
-  FieldSpec('table_type',        'Table Type'),
-  FieldSpec('quantity',          'Quantity',           type: FieldType.number),
-  // ── Stage & Status ────────────────────────────────────────────────────
-  FieldSpec('status',            'Status',             type: FieldType.dropdown, options: _orderStatuses),
-  FieldSpec('current_stage',     'Production Stage',   type: FieldType.dropdown, options: _productionStages),
-  FieldSpec('is_delivered',      'Delivered',          type: FieldType.boolean),
-  FieldSpec('self_installed',    'Self Installed',     type: FieldType.boolean),
-  // ── Dates ─────────────────────────────────────────────────────────────
-  FieldSpec('order_date',        'Order Date',         type: FieldType.date),
-  FieldSpec('lead_date',         'Lead Date',          type: FieldType.date),
-  FieldSpec('expected_completion','Expected Completion',type: FieldType.date),
-  FieldSpec('delivery_date',     'Delivery Date',      type: FieldType.date),
-  // ── Source & Finance ──────────────────────────────────────────────────
-  FieldSpec('order_source',      'Order Source',       type: FieldType.dropdown, options: _leadTypes),
-  FieldSpec('lead_type',         'Lead Type',          type: FieldType.dropdown, options: _leadTypes),
-  FieldSpec('client_type',       'Client Category',    type: FieldType.dropdown, options: _clientCategories),
-  FieldSpec('order_finalised_by','Finalised By'),
-  FieldSpec('amount',            'Order Amount',       type: FieldType.number),
-  FieldSpec('currency',          'Currency',           type: FieldType.dropdown, options: _currencies),
-  FieldSpec('is_hot',            'Hot Lead',           type: FieldType.boolean),
-  // ── Production workers ────────────────────────────────────────────────
-  FieldSpec('carpentry_by',      'Carpentry By'),
-  FieldSpec('paint_by',          'Paint By'),
-  FieldSpec('packaging_by',      'Packaging By'),
-  FieldSpec('dispatch_by',       'Dispatch By'),
-  FieldSpec('installed_by',      'Installed By'),
-  FieldSpec('tracking_link',     'Tracking Link'),
-  // ── Production details ────────────────────────────────────────────────
-  FieldSpec('finishes',          'Finishes',           type: FieldType.dropdown, options: _finishOptions),
-  FieldSpec('days_to_complete',  'Days to Complete',   type: FieldType.number),
-  FieldSpec('on_which_day',      'On Which Day'),
-  FieldSpec('reason_for_delay',  'Reason for Delay'),
-  FieldSpec('spec_sheet_url',    'Spec Sheet URL'),
-  // ── Notes ─────────────────────────────────────────────────────────────
-  FieldSpec('notes',             'Notes',              type: FieldType.multiline),
-  FieldSpec('remarks',           'Remarks',            type: FieldType.multiline),
+  FieldSpec('client_name',        'Client Name',          required: true),
+  FieldSpec('company_name',       'Company Name'),
+  FieldSpec('location',           'Location'),
+  FieldSpec('country',            'Country'),
+  FieldSpec('contact_number',     'Contact Number'),
+  FieldSpec('email',              'Email'),
+  FieldSpec('products',           'Products'),
+  FieldSpec('product_name',       'Product Name'),
+  FieldSpec('table_type',         'Table Type'),
+  FieldSpec('quantity',           'Quantity',             type: FieldType.number),
+  FieldSpec('status',             'Status',               type: FieldType.dropdown, options: _orderStatuses),
+  FieldSpec('current_stage',      'Production Stage',     type: FieldType.dropdown, options: _productionStages),
+  FieldSpec('is_delivered',       'Delivered',            type: FieldType.boolean),
+  FieldSpec('self_installed',     'Self Installed',       type: FieldType.boolean),
+  FieldSpec('order_date',         'Order Date',           type: FieldType.date),
+  FieldSpec('lead_date',          'Lead Date',            type: FieldType.date),
+  FieldSpec('expected_completion','Expected Completion',  type: FieldType.date),
+  FieldSpec('delivery_date',      'Delivery Date',        type: FieldType.date),
+  FieldSpec('order_source',       'Order Source',         type: FieldType.dropdown, options: _leadTypes),
+  FieldSpec('lead_type',          'Lead Type',            type: FieldType.dropdown, options: _leadTypes),
+  FieldSpec('client_type',        'Client Category',      type: FieldType.dropdown, options: _clientCategories),
+  FieldSpec('order_finalised_by', 'Finalised By'),
+  FieldSpec('amount',             'Order Amount',         type: FieldType.number),
+  FieldSpec('currency',           'Currency',             type: FieldType.dropdown, options: _currencies),
+  FieldSpec('is_hot',             'Hot Lead',             type: FieldType.boolean),
+  FieldSpec('carpentry_by',       'Carpentry By'),
+  FieldSpec('paint_by',           'Paint By'),
+  FieldSpec('packaging_by',       'Packaging By'),
+  FieldSpec('dispatch_by',        'Dispatch By'),
+  FieldSpec('installed_by',       'Installed By'),
+  FieldSpec('tracking_link',      'Tracking Link'),
+  FieldSpec('finishes',           'Finishes',             type: FieldType.dropdown, options: _finishOptions),
+  FieldSpec('days_to_complete',   'Days to Complete',     type: FieldType.number),
+  FieldSpec('on_which_day',       'On Which Day'),
+  FieldSpec('reason_for_delay',   'Reason for Delay'),
+  FieldSpec('spec_sheet_url',     'Spec Sheet URL'),
+  FieldSpec('notes',              'Notes',                type: FieldType.multiline),
+  FieldSpec('remarks',            'Remarks',              type: FieldType.multiline),
 ];
 
 // ── Module root ───────────────────────────────────────────────────────────────
@@ -76,16 +69,15 @@ class OrdersModule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Column(
         children: [
           const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [
-              Tab(text: 'Orders'),
-              Tab(text: 'Overview'),
               Tab(text: 'Operations'),
+              Tab(text: 'Orders'),
               Tab(text: 'Priority'),
               Tab(text: 'Materials'),
             ],
@@ -93,9 +85,8 @@ class OrdersModule extends StatelessWidget {
           Expanded(
             child: TabBarView(
               children: [
-                _ordersTab(),
-                _OrdersOverview(repo: _repo),
                 _OperationsBoard(repo: _repo),
+                _ordersTab(),
                 _priorityTab(),
                 _materialsTab(),
               ],
@@ -124,9 +115,9 @@ class OrdersModule extends StatelessWidget {
           final notStart  = list.where((o) => o['status'] == 'Initial Stage').length;
           return MetricRow(children: [
             MetricCard(label: 'Total',       value: '${list.length}', icon: Icons.receipt_long),
-            MetricCard(label: 'In Progress', value: '$inProg',        icon: Icons.timelapse,       color: kWarning),
-            MetricCard(label: 'Delivered',   value: '$delivered',     icon: Icons.local_shipping,   color: kSuccess),
-            MetricCard(label: 'Not Started', value: '$notStart',      icon: Icons.hourglass_empty,  color: kInfo),
+            MetricCard(label: 'In Progress', value: '$inProg',        icon: Icons.timelapse,      color: kWarning),
+            MetricCard(label: 'Delivered',   value: '$delivered',     icon: Icons.local_shipping,  color: kSuccess),
+            MetricCard(label: 'Not Started', value: '$notStart',      icon: Icons.hourglass_empty, color: kInfo),
           ]);
         },
         tile: (o, onEdit, onDelete) => _OrderTile(order: o, onEdit: onEdit, onDelete: onDelete),
@@ -144,12 +135,12 @@ class OrdersModule extends StatelessWidget {
         searchFields: const ['order_name', 'particulars'],
         searchHint: 'Search priority orders…',
         fields: () => const [
-          FieldSpec('order_name',    'Order name',   required: true),
-          FieldSpec('particulars',   'Particulars',  type: FieldType.multiline),
-          FieldSpec('priority',      'Priority',     type: FieldType.dropdown, options: ['High', 'Medium', 'Low']),
-          FieldSpec('order_date',    'Order date',   type: FieldType.date),
-          FieldSpec('delivery_date', 'Delivery date',type: FieldType.date),
-          FieldSpec('notes',         'Notes',        type: FieldType.multiline),
+          FieldSpec('order_name',    'Order name',    required: true),
+          FieldSpec('particulars',   'Particulars',   type: FieldType.multiline),
+          FieldSpec('priority',      'Priority',      type: FieldType.dropdown, options: ['High', 'Medium', 'Low']),
+          FieldSpec('order_date',    'Order date',    type: FieldType.date),
+          FieldSpec('delivery_date', 'Delivery date', type: FieldType.date),
+          FieldSpec('notes',         'Notes',         type: FieldType.multiline),
         ],
         tile: (p, onEdit, onDelete) => Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -181,13 +172,13 @@ class OrdersModule extends StatelessWidget {
         searchFields: const ['material_pending', 'product_name', 'client_name'],
         searchHint: 'Search materials…',
         fields: () => const [
-          FieldSpec('material_pending',    'Material pending',   required: true),
+          FieldSpec('material_pending',    'Material pending',  required: true),
           FieldSpec('product_name',        'Product'),
           FieldSpec('client_name',         'Client'),
           FieldSpec('material_pending_by', 'Pending by'),
           FieldSpec('status',              'Status'),
-          FieldSpec('resolved_date',       'Resolved date',      type: FieldType.date),
-          FieldSpec('comments',            'Comments',           type: FieldType.multiline),
+          FieldSpec('resolved_date',       'Resolved date',     type: FieldType.date),
+          FieldSpec('comments',            'Comments',          type: FieldType.multiline),
         ],
         tile: (m, onEdit, onDelete) => Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -209,7 +200,7 @@ class OrdersModule extends StatelessWidget {
       );
 }
 
-// ── Rich order tile ────────────────────────────────────────────────────────────
+// ── Rich order tile (Orders tab) ───────────────────────────────────────────────
 class _OrderTile extends StatelessWidget {
   final Map<String, dynamic> order;
   final VoidCallback onEdit;
@@ -218,10 +209,10 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final o = order;
+    final o           = order;
     final isDelivered = o['is_delivered'] == true;
-    final isHot = o['is_hot'] == true;
-    final status = str(o['status'], 'open');
+    final isHot       = o['is_hot'] == true;
+    final status      = str(o['status'], 'open');
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -233,41 +224,34 @@ class _OrderTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title row
               Row(children: [
                 if (isHot) const Icon(Icons.local_fire_department, size: 15, color: kDanger),
                 if (isHot) const SizedBox(width: 4),
-                Expanded(
-                  child: Text(str(o['client_name']),
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
-                ),
-                StatusChip(
-                  isDelivered ? 'Delivered' : status,
-                  color: isDelivered ? kSuccess : statusColor(status),
-                ),
+                Expanded(child: Text(str(o['client_name']),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5))),
+                StatusChip(isDelivered ? 'Delivered' : status,
+                    color: isDelivered ? kSuccess : statusColor(status)),
                 RowMenu(onEdit: onEdit, onDelete: onDelete),
               ]),
-              // Company / product
               if ((o['company_name']?.toString().trim() ?? '').isNotEmpty)
                 Text(str(o['company_name']),
                     style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
               const SizedBox(height: 6),
-              // Detail tags
               Wrap(spacing: 10, runSpacing: 4, children: [
                 if ((o['product_name']?.toString().trim() ?? '').isNotEmpty)
-                  _Tag(Icons.sports_esports_outlined, str(o['product_name'])),
+                  _InfoTag(Icons.sports_esports_outlined, str(o['product_name'])),
                 if ((o['location']?.toString().trim() ?? '').isNotEmpty)
-                  _Tag(Icons.location_on_outlined, str(o['location'])),
+                  _InfoTag(Icons.location_on_outlined, str(o['location'])),
                 if ((o['current_stage']?.toString().trim() ?? '').isNotEmpty)
-                  _Tag(Icons.build_outlined, str(o['current_stage'])),
+                  _InfoTag(Icons.build_outlined, str(o['current_stage'])),
                 if (o['order_date'] != null)
-                  _Tag(Icons.calendar_today_outlined, fmtDate(o['order_date'])),
+                  _InfoTag(Icons.calendar_today_outlined, fmtDate(o['order_date'])),
                 if (o['delivery_date'] != null)
-                  _Tag(Icons.local_shipping_outlined, fmtDate(o['delivery_date'])),
+                  _InfoTag(Icons.local_shipping_outlined, fmtDate(o['delivery_date'])),
                 if (o['amount'] != null)
-                  _Tag(Icons.currency_rupee, fmtInr(o['amount'])),
+                  _InfoTag(Icons.currency_rupee, fmtInr(o['amount'])),
                 if ((o['order_source']?.toString().trim() ?? '').isNotEmpty)
-                  _Tag(Icons.link, str(o['order_source'])),
+                  _InfoTag(Icons.link, str(o['order_source'])),
               ]),
             ],
           ),
@@ -277,218 +261,37 @@ class _OrderTile extends StatelessWidget {
   }
 }
 
-class _Tag extends StatelessWidget {
+class _InfoTag extends StatelessWidget {
   final IconData icon;
-  final String text;
-  const _Tag(this.icon, this.text);
-
+  final String   text;
+  const _InfoTag(this.icon, this.text);
   @override
   Widget build(BuildContext context) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, size: 12, color: Theme.of(context).textTheme.bodySmall?.color),
       const SizedBox(width: 3),
-      Text(text,
-          style: TextStyle(fontSize: 11.5, color: Theme.of(context).textTheme.bodySmall?.color)),
+      Text(text, style: TextStyle(fontSize: 11.5, color: Theme.of(context).textTheme.bodySmall?.color)),
     ]);
   }
 }
 
-// ── Orders Overview tab ────────────────────────────────────────────────────────
-class _OrdersOverview extends StatelessWidget {
-  final ErpRepository repo;
-  const _OrdersOverview({required this.repo});
-
-  @override
-  Widget build(BuildContext context) {
-    return AsyncSection<List<Map<String, dynamic>>>(
-      loader: repo.orders,
-      isEmpty: (d) => false,
-      emptyMessage: 'No orders.',
-      builder: (context, orders, _) {
-        final delivered = orders.where((o) => o['is_delivered'] == true).length;
-        final inProg    = orders.where((o) => o['status'] == 'In progress').length;
-        final notStart  = orders.where((o) => o['status'] == 'Initial Stage').length;
-        final hot       = orders.where((o) => o['is_hot'] == true).length;
-
-        // Stage breakdown
-        final stageCount = <String, int>{};
-        for (final o in orders) {
-          final s = str(o['current_stage'], 'Unknown');
-          stageCount[s] = (stageCount[s] ?? 0) + 1;
-        }
-        // Source breakdown
-        final sourceCount = <String, int>{};
-        for (final o in orders) {
-          final raw = str(o['order_source'], str(o['lead_type'], ''));
-          final s = raw == '—' ? 'Direct' : raw;
-          sourceCount[s] = (sourceCount[s] ?? 0) + 1;
-        }
-        // Finaliser breakdown
-        final finaliserCount = <String, int>{};
-        for (final o in orders) {
-          final s = o['order_finalised_by']?.toString().trim() ?? '';
-          if (s.isNotEmpty) finaliserCount[s] = (finaliserCount[s] ?? 0) + 1;
-        }
-
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          children: [
-            MetricRow(children: [
-              MetricCard(label: 'Total Orders', value: '${orders.length}', icon: Icons.receipt_long),
-              MetricCard(label: 'In Progress',  value: '$inProg',          icon: Icons.timelapse,            color: kWarning),
-              MetricCard(label: 'Delivered',    value: '$delivered',        icon: Icons.local_shipping,       color: kSuccess),
-              MetricCard(label: 'Not Started',  value: '$notStart',         icon: Icons.hourglass_empty,      color: kInfo),
-              MetricCard(label: 'Hot Leads',    value: '$hot',              icon: Icons.local_fire_department, color: kDanger),
-            ]),
-            const SizedBox(height: 18),
-            _BreakdownCard(title: 'Production Stage', data: stageCount, total: orders.length),
-            const SizedBox(height: 12),
-            _BreakdownCard(title: 'Order Source',     data: sourceCount, total: orders.length),
-            if (finaliserCount.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _BreakdownCard(title: 'Finalised By', data: finaliserCount, total: orders.length),
-            ],
-            const SizedBox(height: 18),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(children: [
-                const Text('All Orders', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                const SizedBox(width: 8),
-                StatusChip('${orders.length}', color: kBrand),
-              ]),
-            ),
-            // Column headers
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Row(children: [
-                const Expanded(flex: 3, child: Text('Client', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                const Expanded(flex: 2, child: Text('Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                const Expanded(flex: 2, child: Text('Stage', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                const Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-              ]),
-            ),
-            const Divider(height: 1),
-            ...orders.map((o) => _OverviewRow(order: o)),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _BreakdownCard extends StatelessWidget {
-  final String title;
-  final Map<String, int> data;
-  final int total;
-  const _BreakdownCard({required this.title, required this.data, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final sorted = data.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(height: 12),
-            for (final e in sorted) ...[
-              Row(children: [
-                SizedBox(
-                  width: 130,
-                  child: Text(e.key, style: const TextStyle(fontSize: 12.5),
-                      overflow: TextOverflow.ellipsis),
-                ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: total == 0 ? 0 : e.value / total,
-                      backgroundColor: Theme.of(context).dividerColor,
-                      valueColor: AlwaysStoppedAnimation<Color>(kBrand),
-                      minHeight: 6,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 28,
-                  child: Text('${e.value}',
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                ),
-              ]),
-              const SizedBox(height: 8),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OverviewRow extends StatelessWidget {
-  final Map<String, dynamic> order;
-  const _OverviewRow({required this.order});
-
-  @override
-  Widget build(BuildContext context) {
-    final o = order;
-    final isDelivered = o['is_delivered'] == true;
-    final status = str(o['status'], 'open');
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(children: [
-        Expanded(
-          flex: 3,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(str(o['client_name']),
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                overflow: TextOverflow.ellipsis),
-            if ((o['product_name']?.toString().trim() ?? '').isNotEmpty)
-              Text(str(o['product_name']),
-                  style: TextStyle(fontSize: 11.5, color: Theme.of(context).textTheme.bodySmall?.color),
-                  overflow: TextOverflow.ellipsis),
-          ]),
-        ),
-        Expanded(
-          flex: 2,
-          child: Text(str(o['location'], '—'),
-              style: TextStyle(fontSize: 11.5, color: Theme.of(context).textTheme.bodySmall?.color),
-              overflow: TextOverflow.ellipsis),
-        ),
-        Expanded(
-          flex: 2,
-          child: Text(str(o['current_stage'], '—'),
-              style: const TextStyle(fontSize: 11.5),
-              overflow: TextOverflow.ellipsis),
-        ),
-        StatusChip(
-          isDelivered ? 'Delivered' : status,
-          color: isDelivered ? kSuccess : statusColor(status),
-        ),
-      ]),
-    );
-  }
-}
-
 // ── Operations Kanban ──────────────────────────────────────────────────────────
-class _ProdStage {
+
+class _ProdStageConfig {
   final String label;
-  final Color color;
+  final Color  color;
   final String statusValue;
-  final bool isDelivered;
-  const _ProdStage(this.label, this.color, this.statusValue, {this.isDelivered = false});
+  final bool   isDelivered;
+  const _ProdStageConfig(this.label, this.color, this.statusValue, {this.isDelivered = false});
 }
 
-const _prodStages = <_ProdStage>[
-  _ProdStage('New / Initial',         Color(0xFF6B7280), 'Initial Stage'),
-  _ProdStage('Carpentry',             Color(0xFFC5A059), 'In progress'),
-  _ProdStage('Paint Shop',            Color(0xFF4C8DFF), 'In progress'),
-  _ProdStage('Packaging',             Color(0xFFA855F7), 'In progress'),
-  _ProdStage('Dispatch',              Color(0xFFE29A2B), 'In progress'),
-  _ProdStage('Installed / Delivered', Color(0xFF1FB89B), 'Completed', isDelivered: true),
+const _prodStages = <_ProdStageConfig>[
+  _ProdStageConfig('New / Initial',         Color(0xFFEC4899), 'Initial Stage'),
+  _ProdStageConfig('Carpentry',             Color(0xFFF97316), 'In progress'),
+  _ProdStageConfig('Paint Shop',            Color(0xFFF59E0B), 'In progress'),
+  _ProdStageConfig('Packaging',             Color(0xFF4C8DFF), 'In progress'),
+  _ProdStageConfig('Dispatch',              Color(0xFF10B981), 'In progress'),
+  _ProdStageConfig('Installed / Delivered', Color(0xFF22C55E), 'Completed', isDelivered: true),
 ];
 
 class _OperationsBoard extends StatefulWidget {
@@ -509,7 +312,7 @@ class _OperationsBoardState extends State<_OperationsBoard> {
 
   void _reload() => setState(() => _future = widget.repo.orders());
 
-  Future<void> _moveStage(Map<String, dynamic> order, _ProdStage stage) async {
+  Future<void> _moveStage(Map<String, dynamic> order, _ProdStageConfig stage) async {
     try {
       await widget.repo.updateRow('orders', 'id', order['id'], {
         'current_stage': stage.label,
@@ -534,6 +337,16 @@ class _OperationsBoardState extends State<_OperationsBoard> {
     }
   }
 
+  Future<void> _deleteOrder(Map<String, dynamic> order) async {
+    if (!await confirmDelete(context, str(order['client_name'], 'this order'))) return;
+    try {
+      await widget.repo.deleteRow('orders', 'id', order['id']);
+      _reload();
+    } catch (e) {
+      if (mounted) toast(context, 'Delete failed: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
@@ -544,16 +357,18 @@ class _OperationsBoardState extends State<_OperationsBoard> {
         }
         if (snap.hasError) return Center(child: Text('Failed: ${snap.error}'));
         final orders = snap.data ?? [];
+
         final byStage = {for (final s in _prodStages) s.label: <Map<String, dynamic>>[]};
         for (final o in orders) {
-          final stage = str(o['current_stage'], 'New / Initial');
+          final stage = o['current_stage']?.toString().trim() ?? '';
           (byStage[stage] ?? byStage['New / Initial']!).add(o);
         }
+
         return RefreshIndicator(
           onRefresh: () async => _reload(),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -561,8 +376,9 @@ class _OperationsBoardState extends State<_OperationsBoard> {
                   _ProdColumn(
                     stage: stage,
                     orders: byStage[stage.label]!,
-                    onMove: (o, s) => _moveStage(o, s),
-                    onEdit: _editOrder,
+                    onMove:   (o, s) => _moveStage(o, s),
+                    onEdit:   _editOrder,
+                    onDelete: _deleteOrder,
                   ),
               ],
             ),
@@ -573,55 +389,68 @@ class _OperationsBoardState extends State<_OperationsBoard> {
   }
 }
 
+// ── Kanban column ─────────────────────────────────────────────────────────────
 class _ProdColumn extends StatelessWidget {
-  final _ProdStage stage;
-  final List<Map<String, dynamic>> orders;
-  final Future<void> Function(Map<String, dynamic>, _ProdStage) onMove;
-  final Future<void> Function(Map<String, dynamic>) onEdit;
+  final _ProdStageConfig                              stage;
+  final List<Map<String, dynamic>>                    orders;
+  final Future<void> Function(Map<String, dynamic>, _ProdStageConfig) onMove;
+  final Future<void> Function(Map<String, dynamic>)   onEdit;
+  final Future<void> Function(Map<String, dynamic>)   onDelete;
+
   const _ProdColumn({
     required this.stage, required this.orders,
-    required this.onMove, required this.onEdit,
+    required this.onMove, required this.onEdit, required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = stage.color;
     return Container(
-      width: 230,
-      margin: const EdgeInsets.only(right: 10, bottom: 10),
+      width: 270,
+      margin: const EdgeInsets.only(right: 12, bottom: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        border: Border(left: BorderSide(color: color, width: 3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Column header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(children: [
-              Expanded(child: Text(stage.label,
-                  style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 12.5))),
-              StatusChip('${orders.length}', color: color),
+              Container(width: 8, height: 8,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(stage.label.toUpperCase(),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 12, letterSpacing: 0.5))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text('${orders.length}',
+                    style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
             ]),
           ),
+          const Divider(height: 1),
           // Cards
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 520),
+            constraints: const BoxConstraints(maxHeight: 580),
             child: ListView(
               shrinkWrap: true,
               padding: const EdgeInsets.all(8),
               children: orders.map((o) => _ProdCard(
                     order: o,
+                    stageColor: color,
                     currentStage: stage,
                     onMove: onMove,
                     onEdit: () => onEdit(o),
+                    onDelete: () => onDelete(o),
                   )).toList(),
             ),
           ),
@@ -631,70 +460,245 @@ class _ProdColumn extends StatelessWidget {
   }
 }
 
+// ── Kanban card (matches web app style) ──────────────────────────────────────
 class _ProdCard extends StatelessWidget {
-  final Map<String, dynamic> order;
-  final _ProdStage currentStage;
-  final Future<void> Function(Map<String, dynamic>, _ProdStage) onMove;
-  final VoidCallback onEdit;
+  final Map<String, dynamic>    order;
+  final Color                   stageColor;
+  final _ProdStageConfig        currentStage;
+  final Future<void> Function(Map<String, dynamic>, _ProdStageConfig) onMove;
+  final VoidCallback            onEdit;
+  final VoidCallback            onDelete;
+
   const _ProdCard({
-    required this.order, required this.currentStage,
-    required this.onMove, required this.onEdit,
+    required this.order, required this.stageColor, required this.currentStage,
+    required this.onMove, required this.onEdit, required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    final o = order;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
+    final o           = order;
+    final isHot       = o['is_hot'] == true;
+    final isPriority  = o['priority'] != null || isHot;
+    final status      = str(o['status'],       'Initial Stage');
+    final stage       = str(o['current_stage'], currentStage.label);
+    final productName = str(o['product_name'],  str(o['products'], ''));
+    final tableType   = str(o['table_type'],    '');
+    final location    = str(o['location'],      '');
+    final delivDate   = o['delivery_date'];
+    final orderDate   = o['order_date'];
+
+    // Use delivery date if set, otherwise order date
+    final displayDate = delivDate ?? orderDate;
+
+    // Derive product category chip label from product_name / table_type
+    final productChip = tableType.isNotEmpty
+        ? tableType
+        : _inferProductChip(productName);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: stageColor.withValues(alpha: 0.35),
+        ),
+      ),
       child: InkWell(
         onTap: onEdit,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Row 1: Name + Priority badge ────────────────────────
               Row(children: [
-                if (o['is_hot'] == true) ...[
-                  const Icon(Icons.local_fire_department, size: 14, color: kDanger),
+                if (isHot) const Padding(
+                  padding: EdgeInsets.only(right: 5),
+                  child: Icon(Icons.local_fire_department, size: 14, color: kDanger),
+                ),
+                Expanded(
+                  child: Text(str(o['client_name']),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                ),
+                if (isPriority)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: kDanger.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: kDanger.withValues(alpha: 0.6)),
+                    ),
+                    child: const Text('PRIORITY',
+                        style: TextStyle(color: kDanger, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+                  ),
+              ]),
+
+              // ── Row 2: Product name (colored) ───────────────────────
+              if (productName.isNotEmpty && productName != '—') ...[
+                const SizedBox(height: 3),
+                Text(productName,
+                    style: TextStyle(fontSize: 12.5, color: stageColor, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ],
+
+              // ── Row 3: Chips (product type, status, stage) ──────────
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                if (productChip.isNotEmpty)
+                  _Chip(productChip, color: const Color(0xFF4C8DFF)),
+                _StatusBadge(status),
+                _Chip(stage, color: stageColor.withValues(alpha: 0.85)),
+              ]),
+
+              // ── Row 4: Date + Location ──────────────────────────────
+              const SizedBox(height: 8),
+              Row(children: [
+                if (displayDate != null) ...[
+                  Icon(Icons.calendar_today_outlined, size: 12,
+                      color: Theme.of(context).textTheme.bodySmall?.color),
                   const SizedBox(width: 4),
+                  Text(fmtDate(displayDate),
+                      style: TextStyle(fontSize: 11.5,
+                          color: Theme.of(context).textTheme.bodySmall?.color)),
+                  const SizedBox(width: 10),
                 ],
-                Expanded(child: Text(str(o['client_name']),
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
+                if (location.isNotEmpty && location != '—') ...[
+                  Icon(Icons.location_on_outlined, size: 12,
+                      color: Theme.of(context).textTheme.bodySmall?.color),
+                  const SizedBox(width: 3),
+                  Expanded(child: Text(location,
+                      style: TextStyle(fontSize: 11.5,
+                          color: Theme.of(context).textTheme.bodySmall?.color),
+                      overflow: TextOverflow.ellipsis)),
+                ],
+              ]),
+
+              // ── Row 5: Action buttons ───────────────────────────────
+              const SizedBox(height: 10),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              Row(children: [
+                _ActionIcon(Icons.edit_outlined, color: stageColor, onTap: onEdit,    tooltip: 'Edit'),
+                const SizedBox(width: 4),
+                _ActionIcon(Icons.delete_outline, color: kDanger,   onTap: onDelete,  tooltip: 'Delete'),
+                const Spacer(),
+                // Move-stage popup
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 17),
+                  tooltip: 'Move stage',
                   padding: EdgeInsets.zero,
+                  icon: Icon(Icons.swap_horiz_rounded, size: 20, color: stageColor),
                   onSelected: (v) {
-                    if (v == 'edit') {
-                      onEdit();
-                    } else {
-                      final s = _prodStages.firstWhere((s) => s.label == v);
-                      onMove(o, s);
-                    }
+                    final s = _prodStages.firstWhere((s) => s.label == v);
+                    onMove(order, s);
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Edit order')),
+                    const PopupMenuItem(enabled: false,
+                        child: Text('MOVE TO STAGE',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.4))),
                     const PopupMenuDivider(),
                     ..._prodStages
                         .where((s) => s.label != currentStage.label)
-                        .map((s) => PopupMenuItem(value: s.label, child: Text('→ ${s.label}'))),
+                        .map((s) => PopupMenuItem(value: s.label, child: Text(s.label))),
                   ],
                 ),
               ]),
-              if ((o['product_name']?.toString().trim() ?? '').isNotEmpty)
-                Text(str(o['product_name']),
-                    style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color)),
-              const SizedBox(height: 5),
-              Wrap(spacing: 8, runSpacing: 3, children: [
-                if ((o['location']?.toString().trim() ?? '').isNotEmpty)
-                  _Tag(Icons.location_on_outlined, str(o['location'])),
-                if (o['delivery_date'] != null)
-                  _Tag(Icons.calendar_today_outlined, fmtDate(o['delivery_date'])),
-                if (o['amount'] != null)
-                  _Tag(Icons.currency_rupee, fmtInr(o['amount'])),
-              ]),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // Infer a short product category from the product name
+  String _inferProductChip(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('pool'))       return 'Pool Table';
+    if (n.contains('tt') || n.contains('table tennis')) return 'TT Table';
+    if (n.contains('foosball'))   return 'Foosball';
+    if (n.contains('air hockey')) return 'Air Hockey';
+    if (n.contains('snooker'))    return 'Snooker';
+    if (n.contains('chess'))      return 'Chess';
+    if (n.contains('carrom'))     return 'Carrom';
+    if (n.contains('bar'))        return 'Bar';
+    if (n.contains('gaming'))     return 'Gaming Set';
+    return '';
+  }
+}
+
+// ── Small chip (product type / stage label) ──────────────────────────────────
+class _Chip extends StatelessWidget {
+  final String text;
+  final Color  color;
+  const _Chip(this.text, {required this.color});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(text,
+          style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
+// ── Status badge (IN PROGRESS / INITIAL STAGE / COMPLETED) ───────────────────
+class _StatusBadge extends StatelessWidget {
+  final String status;
+  const _StatusBadge(this.status);
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    String label;
+    switch (status.toLowerCase()) {
+      case 'in progress':
+        color = kWarning; label = 'IN PROGRESS'; break;
+      case 'completed':
+        color = kSuccess; label = 'COMPLETED'; break;
+      default:
+        color = kInfo; label = 'INITIAL STAGE'; break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(label,
+          style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
+    );
+  }
+}
+
+// ── Icon action button ────────────────────────────────────────────────────────
+class _ActionIcon extends StatelessWidget {
+  final IconData   icon;
+  final Color      color;
+  final VoidCallback onTap;
+  final String     tooltip;
+  const _ActionIcon(this.icon, {required this.color, required this.onTap, required this.tooltip});
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Icon(icon, size: 16, color: color),
         ),
       ),
     );
