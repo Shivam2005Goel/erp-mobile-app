@@ -269,7 +269,7 @@ class _PipelineBoardState extends State<_PipelineBoard> {
     _future = widget.repo.opportunities();
   }
 
-  void _reload() => setState(() => _future = widget.repo.opportunities());
+  void _reload() { if (mounted) setState(() { _future = widget.repo.opportunities(); }); }
 
   Future<void> _move(Map<String, dynamic> opp, String stage) async {
     try {
@@ -280,38 +280,51 @@ class _PipelineBoardState extends State<_PipelineBoard> {
     }
   }
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(msg),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
+  }
+
   Future<void> _add() async {
     final res = await showRecordForm(context, title: 'Add Opportunity', fields: _oppFields());
-    if (res == null) return;
+    if (res == null || !mounted) return;
     res['currency'] ??= 'INR';
     res['stage'] ??= 'NEW';
     try {
       await widget.repo.create('crm_opportunities', res);
       _reload();
     } catch (e) {
-      if (mounted) toast(context, 'Add failed: $e');
+      _showError('Failed to add opportunity.\n\n$e');
     }
   }
 
   Future<void> _edit(Map<String, dynamic> opp) async {
     final res = await showRecordForm(context,
         title: 'Edit Opportunity', fields: _oppFields(), initial: opp);
-    if (res == null) return;
+    if (res == null || !mounted) return;
     try {
       await widget.repo.updateRow('crm_opportunities', 'id', opp['id'], res);
       _reload();
     } catch (e) {
-      if (mounted) toast(context, 'Update failed: $e');
+      _showError('Failed to update opportunity.\n\n$e');
     }
   }
 
   Future<void> _delete(Map<String, dynamic> opp) async {
     if (!await confirmDelete(context, str(opp['name'], 'this deal'))) return;
+    if (!mounted) return;
     try {
       await widget.repo.deleteRow('crm_opportunities', 'id', opp['id']);
       _reload();
     } catch (e) {
-      if (mounted) toast(context, 'Delete failed: $e');
+      _showError('Failed to delete opportunity.\n\n$e');
     }
   }
 

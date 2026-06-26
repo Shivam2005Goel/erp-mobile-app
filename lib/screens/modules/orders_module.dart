@@ -310,7 +310,7 @@ class _OperationsBoardState extends State<_OperationsBoard> {
     _future = widget.repo.orders();
   }
 
-  void _reload() => setState(() => _future = widget.repo.orders());
+  void _reload() { if (mounted) setState(() { _future = widget.repo.orders(); }); }
 
   Future<void> _moveStage(Map<String, dynamic> order, _ProdStageConfig stage) async {
     try {

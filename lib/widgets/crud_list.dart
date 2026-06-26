@@ -72,7 +72,7 @@ class _CrudListState extends State<CrudList> {
 
   void _reload() {
     if (!mounted) return;
-    setState(() => _future = widget.loader());
+    setState(() { _future = widget.loader(); });
   }
 
   List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> list) {

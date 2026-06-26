@@ -212,7 +212,8 @@ class _AsyncSectionState<T> extends State<AsyncSection<T>> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = widget.loader());
+    if (!mounted) return;
+    setState(() { _future = widget.loader(); });
     await _future;
   }
 

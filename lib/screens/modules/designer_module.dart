@@ -22,7 +22,8 @@ class _DesignerModuleState extends State<DesignerModule> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _repo.designs());
+    if (!mounted) return;
+    setState(() { _future = _repo.designs(); });
     await _future;
   }
 
