@@ -533,14 +533,13 @@ class _ProdCard extends StatelessWidget {
     final stage       = str(o['current_stage'], currentStage.label);
     final productName = str(o['product_name'],  str(o['products'], ''));
     final tableType   = str(o['table_type'],    '');
+    final companyName = str(o['company_name'],  '');
     final location    = str(o['location'],      '');
-    final delivDate   = o['delivery_date'];
     final orderDate   = o['order_date'];
+    final delivDate   = o['delivery_date'];
+    final amount      = o['amount'];
+    final source      = str(o['order_source'],  '');
 
-    // Use delivery date if set, otherwise order date
-    final displayDate = delivDate ?? orderDate;
-
-    // Derive product category chip label from product_name / table_type
     final productChip = tableType.isNotEmpty
         ? tableType
         : _inferProductChip(productName);
@@ -585,13 +584,19 @@ class _ProdCard extends StatelessWidget {
                   ),
               ]),
 
-              // ── Row 2: Product name (colored) ───────────────────────
+              // ── Row 2: Company + Product name ───────────────────────
+              if (companyName.isNotEmpty && companyName != '—') ...[
+                const SizedBox(height: 2),
+                Text(companyName,
+                    style: TextStyle(fontSize: 11.5,
+                        color: Theme.of(context).textTheme.bodySmall?.color),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
               if (productName.isNotEmpty && productName != '—') ...[
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(productName,
                     style: TextStyle(fontSize: 12.5, color: stageColor, fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
 
               // ── Row 3: Chips (product type, status, stage) ──────────
@@ -603,27 +608,19 @@ class _ProdCard extends StatelessWidget {
                 _Chip(stage, color: stageColor.withValues(alpha: 0.85)),
               ]),
 
-              // ── Row 4: Date + Location ──────────────────────────────
+              // ── Row 4: Info tags (dates, location, amount, source) ──
               const SizedBox(height: 8),
-              Row(children: [
-                if (displayDate != null) ...[
-                  Icon(Icons.calendar_today_outlined, size: 12,
-                      color: Theme.of(context).textTheme.bodySmall?.color),
-                  const SizedBox(width: 4),
-                  Text(fmtDate(displayDate),
-                      style: TextStyle(fontSize: 11.5,
-                          color: Theme.of(context).textTheme.bodySmall?.color)),
-                  const SizedBox(width: 10),
-                ],
-                if (location.isNotEmpty && location != '—') ...[
-                  Icon(Icons.location_on_outlined, size: 12,
-                      color: Theme.of(context).textTheme.bodySmall?.color),
-                  const SizedBox(width: 3),
-                  Expanded(child: Text(location,
-                      style: TextStyle(fontSize: 11.5,
-                          color: Theme.of(context).textTheme.bodySmall?.color),
-                      overflow: TextOverflow.ellipsis)),
-                ],
+              Wrap(spacing: 10, runSpacing: 4, children: [
+                if (orderDate != null)
+                  _InfoTag(Icons.calendar_today_outlined,  'Order: ${fmtDate(orderDate)}'),
+                if (delivDate != null)
+                  _InfoTag(Icons.local_shipping_outlined,  'Deliver: ${fmtDate(delivDate)}'),
+                if (location.isNotEmpty && location != '—')
+                  _InfoTag(Icons.location_on_outlined, location),
+                if (amount != null)
+                  _InfoTag(Icons.currency_rupee, fmtInr(amount)),
+                if (source.isNotEmpty && source != '—')
+                  _InfoTag(Icons.link_outlined, source),
               ]),
 
               // ── Row 5: Action buttons ───────────────────────────────
