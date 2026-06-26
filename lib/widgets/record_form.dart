@@ -35,22 +35,23 @@ Future<Map<String, dynamic>?> showRecordForm(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    useSafeArea: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (ctx) {
-      final bottom = MediaQuery.of(ctx).viewInsets.bottom;
-      final maxH = MediaQuery.of(ctx).size.height * 0.88;
-      return ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxH),
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottom),
-          child: _RecordForm(
-              title: title, fields: fields, initial: initial ?? {}),
-        ),
-      );
-    },
+    builder: (ctx) => DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.4,
+      maxChildSize: 1.0,
+      expand: false,
+      builder: (ctx2, scrollController) => _RecordForm(
+        title: title,
+        fields: fields,
+        initial: initial ?? {},
+        scrollController: scrollController,
+      ),
+    ),
   );
 }
 
@@ -58,8 +59,13 @@ class _RecordForm extends StatefulWidget {
   final String title;
   final List<FieldSpec> fields;
   final Map<String, dynamic> initial;
-  const _RecordForm(
-      {required this.title, required this.fields, required this.initial});
+  final ScrollController scrollController;
+  const _RecordForm({
+    required this.title,
+    required this.fields,
+    required this.initial,
+    required this.scrollController,
+  });
 
   @override
   State<_RecordForm> createState() => _RecordFormState();
@@ -105,7 +111,7 @@ class _RecordFormState extends State<_RecordForm> {
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     final out = <String, dynamic>{};
     for (final f in widget.fields) {
       switch (f.type) {
@@ -133,32 +139,49 @@ class _RecordFormState extends State<_RecordForm> {
 
   @override
   Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+      // Push content above keyboard
+      padding: EdgeInsets.only(bottom: bottom),
       child: Form(
         key: _formKey,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    for (final f in widget.fields) ...[
-                      _buildField(f),
-                      const SizedBox(height: 12),
-                    ],
-                  ],
+            // ── Title row ──────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 12, 0),
+              child: Row(children: [
+                Expanded(
+                  child: Text(widget.title,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w800)),
                 ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ]),
+            ),
+            const Divider(height: 1),
+            // ── Scrollable fields ──────────────────────────────────────
+            Expanded(
+              child: ListView(
+                controller: widget.scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                children: [
+                  for (final f in widget.fields) ...[
+                    _buildField(f),
+                    const SizedBox(height: 14),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
+            // ── Sticky Save / Cancel buttons ──────────────────────────
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Row(children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
@@ -167,12 +190,13 @@ class _RecordFormState extends State<_RecordForm> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: kBrand),
                     onPressed: _submit,
                     child: const Text('Save'),
                   ),
                 ),
-              ],
+              ]),
             ),
           ],
         ),
@@ -204,12 +228,20 @@ class _RecordFormState extends State<_RecordForm> {
               firstDate: DateTime(2015),
               lastDate: DateTime(2100),
             );
-            if (picked != null) setState(() => _dates[f.key] = picked);
+            if (picked != null && mounted) {
+              setState(() => _dates[f.key] = picked);
+            }
           },
           child: InputDecorator(
             decoration: InputDecoration(
               labelText: f.label,
-              suffixIcon: const Icon(Icons.calendar_today, size: 18),
+              suffixIcon: d != null
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 16),
+                      onPressed: () =>
+                          setState(() => _dates[f.key] = null),
+                    )
+                  : const Icon(Icons.calendar_today, size: 18),
             ),
             child: Text(
               d == null ? 'Select date' : DateFormat('dd MMM yyyy').format(d),
@@ -236,26 +268,23 @@ class _RecordFormState extends State<_RecordForm> {
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
           ],
           decoration: InputDecoration(labelText: f.label),
-          validator: (v) => f.required && (v == null || v.trim().isEmpty)
-              ? 'Required'
-              : null,
+          validator: (v) =>
+              f.required && (v == null || v.trim().isEmpty) ? 'Required' : null,
         );
       case FieldType.multiline:
         return TextFormField(
           controller: _controllers[f.key],
           maxLines: 3,
           decoration: InputDecoration(labelText: f.label),
-          validator: (v) => f.required && (v == null || v.trim().isEmpty)
-              ? 'Required'
-              : null,
+          validator: (v) =>
+              f.required && (v == null || v.trim().isEmpty) ? 'Required' : null,
         );
       case FieldType.text:
         return TextFormField(
           controller: _controllers[f.key],
           decoration: InputDecoration(labelText: f.label),
-          validator: (v) => f.required && (v == null || v.trim().isEmpty)
-              ? 'Required'
-              : null,
+          validator: (v) =>
+              f.required && (v == null || v.trim().isEmpty) ? 'Required' : null,
         );
     }
   }

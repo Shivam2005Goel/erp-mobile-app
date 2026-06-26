@@ -22,9 +22,13 @@ class ErpRepository {
   }
 
   /// Updates a row matched by [idCol] == [id].
+  /// Null-valued keys are stripped so existing DB values are preserved.
   Future<void> updateRow(
       String table, String idCol, dynamic id, Map<String, dynamic> data) async {
-    await _db.from(table).update(data).eq(idCol, id);
+    final clean = Map<String, dynamic>.from(data)
+      ..removeWhere((k, v) => v == null);
+    if (clean.isEmpty) return;
+    await _db.from(table).update(clean).eq(idCol, id);
   }
 
   /// Deletes a row matched by [idCol] == [id].

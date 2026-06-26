@@ -19,7 +19,6 @@ class CrudList extends StatefulWidget {
       tile;
 
   /// Called with (context, rows, onAdd) — onAdd triggers the built-in add form.
-  /// Put AddBar(label: ..., onTap: onAdd) wherever you want the button.
   final Widget Function(
       BuildContext, List<Map<String, dynamic>>, VoidCallback onAdd)? header;
 
@@ -62,6 +61,19 @@ class CrudList extends StatefulWidget {
 
 class _CrudListState extends State<CrudList> {
   String _query = '';
+  late Future<List<Map<String, dynamic>>> _future;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.loader();
+  }
+
+  void _reload() {
+    if (!mounted) return;
+    setState(() => _future = widget.loader());
+  }
 
   List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> list) {
     if (widget.searchFields.isEmpty) return list;
@@ -74,103 +86,183 @@ class _CrudListState extends State<CrudList> {
     }).toList();
   }
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(msg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _add() async {
+    if (_busy) return;
+    final res = await showRecordForm(context,
+        title: widget.addLabel, fields: widget.fields());
+    if (res == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await widget.repo
+          .create(widget.table, widget.prepareCreate?.call(res) ?? res);
+      _reload();
+    } catch (e) {
+      _showError('Failed to add record.\n\n$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _edit(Map<String, dynamic> row) async {
+    if (_busy) return;
+    final res = await showRecordForm(context,
+        title: widget.editLabel, fields: widget.fields(), initial: row);
+    if (res == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await widget.repo
+          .updateRow(widget.table, widget.idCol, row[widget.idCol], res);
+      _reload();
+    } catch (e) {
+      _showError('Failed to update record.\n\n$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _del(Map<String, dynamic> row) async {
+    if (_busy) return;
+    if (!await confirmDelete(context, 'this record')) return;
+    if (!mounted) return;
+    setState(() => _busy = true);
+    try {
+      await widget.repo
+          .deleteRow(widget.table, widget.idCol, row[widget.idCol]);
+      _reload();
+    } catch (e) {
+      _showError('Failed to delete record.\n\n$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AsyncSection<List<Map<String, dynamic>>>(
-      loader: widget.loader,
-      isEmpty: (d) => false,
-      emptyMessage: widget.emptyMessage,
-      builder: (context, list, refresh) {
-        Future<void> add() async {
-          final res = await showRecordForm(context,
-              title: widget.addLabel, fields: widget.fields());
-          if (res == null) return;
-          try {
-            await widget.repo
-                .create(widget.table, widget.prepareCreate?.call(res) ?? res);
-            await refresh();
-          } catch (e) {
-            if (context.mounted) toast(context, 'Add failed: $e');
-          }
-        }
-
-        Future<void> edit(Map<String, dynamic> row) async {
-          final res = await showRecordForm(context,
-              title: widget.editLabel, fields: widget.fields(), initial: row);
-          if (res == null) return;
-          try {
-            await widget.repo
-                .updateRow(widget.table, widget.idCol, row[widget.idCol], res);
-            await refresh();
-          } catch (e) {
-            if (context.mounted) toast(context, 'Update failed: $e');
-          }
-        }
-
-        Future<void> del(Map<String, dynamic> row) async {
-          if (!await confirmDelete(context, 'this record')) return;
-          try {
-            await widget.repo
-                .deleteRow(widget.table, widget.idCol, row[widget.idCol]);
-            await refresh();
-          } catch (e) {
-            if (context.mounted) toast(context, 'Delete failed: $e');
-          }
-        }
-
-        final visible = _filter(list);
-
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          children: [
-            if (widget.header != null) ...[
-              widget.header!(context, list, add),
-              const SizedBox(height: 4),
-            ],
-            if (widget.showAddBar) AddBar(label: widget.addLabel, onTap: add),
-            if (widget.searchFields.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: TextField(
-                  onChanged: (v) => setState(() => _query = v),
-                  decoration: InputDecoration(
-                    hintText: widget.searchHint,
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    suffixIcon: _query.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () => setState(() => _query = ''),
-                          )
-                        : null,
-                    isDense: true,
-                  ),
+    return Stack(
+      children: [
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: _future,
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting &&
+                snap.data == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snap.hasError && snap.data == null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.error_outline,
+                        size: 40, color: Colors.redAccent),
+                    const SizedBox(height: 12),
+                    Text('Failed to load data',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 6),
+                    Text('${snap.error}',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 14),
+                    ElevatedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Retry'),
+                    ),
+                  ]),
                 ),
+              );
+            }
+
+            final list = snap.data ?? [];
+            final visible = _filter(list);
+
+            return RefreshIndicator(
+              onRefresh: () async => _reload(),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                children: [
+                  if (widget.header != null) ...[
+                    widget.header!(context, list, _add),
+                    const SizedBox(height: 4),
+                  ],
+                  if (widget.showAddBar)
+                    AddBar(label: widget.addLabel, onTap: _add),
+                  if (widget.searchFields.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: TextField(
+                        onChanged: (v) => setState(() => _query = v),
+                        decoration: InputDecoration(
+                          hintText: widget.searchHint,
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          suffixIcon: _query.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () =>
+                                      setState(() => _query = ''),
+                                )
+                              : null,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (_query.isNotEmpty)
+                      Padding(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text(
+                          '${visible.length} of ${list.length} results',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey),
+                        ),
+                      ),
+                  ],
+                  if (visible.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: Center(
+                        child: Text(_query.isNotEmpty
+                            ? 'No results for "$_query"'
+                            : widget.emptyMessage),
+                      ),
+                    ),
+                  ...visible.map((row) => widget.tile(
+                        row,
+                        () => _edit(row),
+                        () => _del(row),
+                      )),
+                ],
               ),
-              const SizedBox(height: 4),
-              if (_query.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Text(
-                    '${visible.length} of ${list.length} results',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ),
-            ],
-            if (visible.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 60),
-                child: Center(
-                  child: Text(_query.isNotEmpty
-                      ? 'No results for "$_query"'
-                      : widget.emptyMessage),
-                ),
-              ),
-            ...visible.map((row) =>
-                widget.tile(row, () => edit(row), () => del(row))),
-          ],
-        );
-      },
+            );
+          },
+        ),
+        // Loading overlay while a mutation is in flight
+        if (_busy)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black12,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+      ],
     );
   }
 }
