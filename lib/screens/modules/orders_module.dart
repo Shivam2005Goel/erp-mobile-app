@@ -366,21 +366,26 @@ class _OperationsBoardState extends State<_OperationsBoard> {
 
         return RefreshIndicator(
           onRefresh: () async => _reload(),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final stage in _prodStages)
-                  _ProdColumn(
-                    stage: stage,
-                    orders: byStage[stage.label]!,
-                    onMove:   (o, s) => _moveStage(o, s),
-                    onEdit:   _editOrder,
-                    onDelete: _deleteOrder,
-                  ),
-              ],
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.all(10),
+              child: SizedBox(
+                height: constraints.maxHeight - 20,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final stage in _prodStages)
+                      _ProdColumn(
+                        stage: stage,
+                        orders: byStage[stage.label]!,
+                        onMove:   (o, s) => _moveStage(o, s),
+                        onEdit:   _editOrder,
+                        onDelete: _deleteOrder,
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -407,7 +412,7 @@ class _ProdColumn extends StatelessWidget {
     final color = stage.color;
     return Container(
       width: 270,
-      margin: const EdgeInsets.only(right: 12, bottom: 12),
+      margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
@@ -415,9 +420,8 @@ class _ProdColumn extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // Column header
+          // ── Column header ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(children: [
@@ -425,7 +429,8 @@ class _ProdColumn extends StatelessWidget {
                   decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
               const SizedBox(width: 8),
               Expanded(child: Text(stage.label.toUpperCase(),
-                  style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 12, letterSpacing: 0.5))),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: color,
+                      fontSize: 12, letterSpacing: 0.5))),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -438,20 +443,65 @@ class _ProdColumn extends StatelessWidget {
             ]),
           ),
           const Divider(height: 1),
-          // Cards
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 580),
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(8),
-              children: orders.map((o) => _ProdCard(
-                    order: o,
-                    stageColor: color,
-                    currentStage: stage,
-                    onMove: onMove,
-                    onEdit: () => onEdit(o),
-                    onDelete: () => onDelete(o),
-                  )).toList(),
+          // ── Card list — DragTarget fills remaining height ──────────
+          Expanded(
+            child: DragTarget<Map<String, dynamic>>(
+              onWillAcceptWithDetails: (d) =>
+                  d.data['current_stage']?.toString() != stage.label,
+              onAcceptWithDetails: (d) => onMove(d.data, stage),
+              builder: (context, candidateData, _) {
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  decoration: BoxDecoration(
+                    color: candidateData.isNotEmpty
+                        ? color.withValues(alpha: 0.10)
+                        : Colors.transparent,
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(14)),
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.all(8),
+                    children: orders.map((o) => LongPressDraggable<Map<String, dynamic>>(
+                          data: o,
+                          hapticFeedbackOnStart: true,
+                          feedback: Material(
+                            elevation: 8,
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 258,
+                              child: _ProdCard(
+                                order: o,
+                                stageColor: color,
+                                currentStage: stage,
+                                onMove: (_, s) async {},
+                                onEdit: () {},
+                                onDelete: () {},
+                              ),
+                            ),
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.3,
+                            child: _ProdCard(
+                              order: o,
+                              stageColor: color,
+                              currentStage: stage,
+                              onMove: (_, s) async {},
+                              onEdit: () {},
+                              onDelete: () {},
+                            ),
+                          ),
+                          child: _ProdCard(
+                            order: o,
+                            stageColor: color,
+                            currentStage: stage,
+                            onMove: onMove,
+                            onEdit: () => onEdit(o),
+                            onDelete: () => onDelete(o),
+                          ),
+                        )).toList(),
+                  ),
+                );
+              },
             ),
           ),
         ],
