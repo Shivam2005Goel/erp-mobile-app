@@ -211,44 +211,57 @@ class _UserCard extends StatelessWidget {
         name.split(' ').map((p) => p.isEmpty ? '' : p[0].toUpperCase()).take(2).join();
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: kBrand.withValues(alpha: 0.15),
-          child: Text(initials,
-              style: TextStyle(
-                  color: kBrand, fontWeight: FontWeight.bold, fontSize: 14)),
-        ),
-        title: Text(name,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(str(user['email'], ''),
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            if ((user['department']?.toString().trim() ?? '').isNotEmpty)
-              Text(str(user['department']),
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
-        ),
-        isThreeLine: (user['department']?.toString().trim() ?? '').isNotEmpty,
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            StatusChip(role, color: kBrand),
-            const SizedBox(height: 4),
-            StatusChip(
-              status,
-              color: status == 'active' ? kSuccess : kDanger,
-            ),
-            if (approval == 'pending')
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: StatusChip('PENDING', color: kWarning),
-              ),
-          ],
-        ),
+      child: InkWell(
         onTap: onEdit,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: kBrand.withValues(alpha: 0.15),
+                child: Text(initials,
+                    style: TextStyle(
+                        color: kBrand,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 2),
+                    if ((user['email']?.toString().trim() ?? '').isNotEmpty)
+                      Text(str(user['email']),
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis),
+                    if ((user['department']?.toString().trim() ?? '').isNotEmpty)
+                      Text(str(user['department']),
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 6, runSpacing: 4, children: [
+                      StatusChip(role, color: kBrand),
+                      StatusChip(
+                        status,
+                        color: status == 'active' ? kSuccess : kDanger,
+                      ),
+                      if (approval == 'pending')
+                        StatusChip('PENDING', color: kWarning),
+                    ]),
+                  ],
+                ),
+              ),
+              const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
+            ],
+          ),
+        ),
       ),
     );
   }
