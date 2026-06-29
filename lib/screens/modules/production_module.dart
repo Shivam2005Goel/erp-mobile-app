@@ -449,69 +449,91 @@ class _PersonTaskCardState extends State<_PersonTaskCard> {
             onTap: () => setState(() => _expanded = !_expanded),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-              child: Row(children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: kBrand.withValues(alpha: 0.15),
-                  child: Text(_initials,
-                      style: TextStyle(
-                          color: kBrand,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.person,
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: kBrand.withValues(alpha: 0.15),
+                    child: Text(_initials,
+                        style: TextStyle(
+                            color: kBrand,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                  ),
+                  const SizedBox(width: 12),
+                  // Name + task count — Expanded so text never wraps
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.person,
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14)),
-                      Text(
+                              fontWeight: FontWeight.w700, fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        Text(
                           '${widget.tasks.length} task${widget.tasks.length == 1 ? '' : 's'}',
                           style: const TextStyle(
-                              fontSize: 11, color: Colors.grey)),
+                              fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Actions column: pending badge + expand + assign
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (pending > 0) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: kBrand,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '$pending pending',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Icon(
+                          _expanded
+                              ? Icons.expand_less
+                              : Icons.chevron_right,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
+                      TextButton.icon(
+                        onPressed: _assignTask,
+                        icon: const Icon(Icons.add, size: 13),
+                        label: const Text('Assign Task',
+                            style: TextStyle(fontSize: 11)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: kBrand,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                if (pending > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: kBrand,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '$pending pending',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                Icon(
-                  _expanded ? Icons.expand_less : Icons.chevron_right,
-                  color: Colors.grey,
-                  size: 20,
-                ),
-                const SizedBox(width: 4),
-                TextButton.icon(
-                  onPressed: _assignTask,
-                  icon: const Icon(Icons.add, size: 13),
-                  label: const Text('Assign Task',
-                      style: TextStyle(fontSize: 11)),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: kBrand,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
-                  ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ),
 
