@@ -457,86 +457,104 @@ class _CalendarTabState extends State<_CalendarTab> {
   Future<void> _addEvent() async {
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    String type = 'meeting';
-    String? date = _selected != null
-        ? DateFormat('yyyy-MM-dd').format(_selected!)
-        : DateFormat('yyyy-MM-dd').format(DateTime.now());
+    bool allDay = true;
+    DateTime selectedDate = _selected ?? DateTime.now();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          title: const Text('Add Event'),
+          title: const Text('Add event'),
+          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Title
               TextField(
                 controller: titleCtrl,
                 autofocus: true,
                 decoration: const InputDecoration(
-                    labelText: 'Title *', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Description', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              InputDecorator(
-                decoration: const InputDecoration(
-                    labelText: 'Type', border: OutlineInputBorder()),
-                child: DropdownButton<String>(
-                  value: type,
-                  isExpanded: true,
-                  underline: const SizedBox.shrink(),
-                  items: const [
-                    DropdownMenuItem(value: 'meeting', child: Text('Meeting')),
-                    DropdownMenuItem(
-                        value: 'deadline', child: Text('Deadline')),
-                    DropdownMenuItem(
-                        value: 'holiday', child: Text('Holiday')),
-                    DropdownMenuItem(
-                        value: 'reminder', child: Text('Reminder')),
-                    DropdownMenuItem(value: 'event', child: Text('Event')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setSt(() => type = v);
-                  },
+                  hintText: 'Event title',
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+              // Date picker row
               InkWell(
                 onTap: () async {
                   final picked = await showDatePicker(
                     context: ctx,
-                    initialDate: DateTime.tryParse(date ?? '') ?? DateTime.now(),
+                    initialDate: selectedDate,
                     firstDate: DateTime(2020),
                     lastDate: DateTime(2030),
                   );
-                  if (picked != null) {
-                    setSt(() =>
-                        date = DateFormat('yyyy-MM-dd').format(picked));
-                  }
+                  if (picked != null) setSt(() => selectedDate = picked);
                 },
                 child: InputDecorator(
                   decoration: const InputDecoration(
-                      labelText: 'Date', border: OutlineInputBorder()),
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
                   child: Row(children: [
+                    Expanded(
+                      child: Text(
+                        DateFormat('dd - MM - yyyy').format(selectedDate),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
                     const Icon(Icons.calendar_today, size: 16),
-                    const SizedBox(width: 8),
-                    Text(date ?? 'Select date'),
                   ]),
                 ),
               ),
+              const SizedBox(height: 4),
+              // All day checkbox
+              Row(children: [
+                Checkbox(
+                  value: allDay,
+                  onChanged: (v) => setSt(() => allDay = v ?? true),
+                  activeColor: kBrand,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                const Text('All day', style: TextStyle(fontSize: 14)),
+              ]),
+              const SizedBox(height: 4),
+              // Description
+              TextField(
+                controller: descCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Description (optional)',
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 4),
             ]),
           ),
+          actionsPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
-            ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Add')),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(ctx, false),
+              icon: const Icon(Icons.close, size: 14),
+              label: const Text(''),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(40, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.check, size: 14),
+              label: const Text('Add'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kBrand,
+                foregroundColor: Colors.white,
+              ),
+            ),
           ],
         ),
       ),
@@ -550,11 +568,18 @@ class _CalendarTabState extends State<_CalendarTab> {
         'description': descCtrl.text.trim().isEmpty
             ? null
             : descCtrl.text.trim(),
-        'event_type': type,
-        'event_date': date,
+        'event_type': 'event',
+        'event_date': DateFormat('yyyy-MM-dd').format(selectedDate),
+        'all_day': allDay,
       });
       await _load();
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save event: $e')),
+        );
+      }
+    }
   }
 
   @override
