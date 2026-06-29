@@ -51,6 +51,20 @@ class AppModule {
 
   static const all = [
     AppModule(
+      name: 'Home',
+      route: '/dashboard/home',
+      role: null,
+      description: 'Notes, tasks and upcoming calendar events.',
+      icon: Icons.home,
+    ),
+    AppModule(
+      name: 'Access Admin',
+      route: '/dashboard/access',
+      role: 'admin',
+      description: 'Manage user roles, status and pending approvals.',
+      icon: Icons.admin_panel_settings,
+    ),
+    AppModule(
       name: 'Team & HR',
       route: '/dashboard/hr',
       role: 'hr',
@@ -139,6 +153,7 @@ class AppModule {
   static String homePathForRole(String? roleKey) {
     switch (roleKey) {
       case 'admin':
+        return '/dashboard/home';
       case 'hr':
         return '/dashboard/hr';
       case 'inventory':
