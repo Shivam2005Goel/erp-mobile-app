@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'access_module.dart';
 import 'attendance_module.dart';
 import 'crm_module.dart';
 import 'designer_module.dart';
+import 'home_module.dart';
 import 'hr_module.dart';
 import 'inventory_module.dart';
 import 'marketing_module.dart';
@@ -14,6 +16,10 @@ import 'tickets_module.dart';
 /// Maps a dashboard route to its live module view.
 Widget buildModuleView(String route) {
   switch (route) {
+    case '/dashboard/home':
+      return HomeModule();
+    case '/dashboard/access':
+      return const AccessModule();
     case '/dashboard/hr':
       return HrModule();
     case '/dashboard/inventory':

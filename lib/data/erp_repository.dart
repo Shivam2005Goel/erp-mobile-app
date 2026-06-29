@@ -352,6 +352,84 @@ class ErpRepository {
     return out;
   }
 
+  // ── Home ─────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> homeNotes() async => _rows(
+        await _db.from('home_notes').select('*').order('updated_at', ascending: false));
+
+  Future<List<Map<String, dynamic>>> homeTasks() async => _rows(
+        await _db.from('tasks').select('*').order('created_at', ascending: false).limit(100));
+
+  Future<List<Map<String, dynamic>>> calendarEvents() async => _rows(
+        await _db.from('calendar_events').select('*').order('event_date', ascending: true));
+
+  // ── CRM per-deal notes / activities / tasks ───────────────────────
+  Future<List<Map<String, dynamic>>> crmNotesByTarget(String targetId) async => _rows(
+        await _db.from('crm_notes').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+
+  Future<List<Map<String, dynamic>>> crmActivitiesByTarget(String targetId) async => _rows(
+        await _db.from('crm_activities').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+
+  Future<List<Map<String, dynamic>>> crmTasksByTarget(String targetId) async => _rows(
+        await _db.from('crm_tasks').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+
+  Future<void> addCrmNote(
+      String targetId, String targetType, String note, String author) async {
+    await _db.from('crm_notes').insert({
+      'target_id': targetId,
+      'target_type': targetType,
+      'note': note,
+      'created_by': author,
+    });
+  }
+
+  Future<void> deleteCrmNote(String id) async {
+    await _db.from('crm_notes').delete().eq('id', id);
+  }
+
+  Future<void> addCrmTask(
+      String targetId, String targetType, Map<String, dynamic> fields) async {
+    final clean = Map<String, dynamic>.from(fields)
+      ..removeWhere((k, v) => v == null || (v is String && v.trim().isEmpty));
+    await _db.from('crm_tasks').insert({
+      'target_id': targetId,
+      'target_type': targetType,
+      ...clean,
+    });
+  }
+
+  Future<void> updateCrmTask(String id, Map<String, dynamic> fields) async {
+    final clean = Map<String, dynamic>.from(fields)
+      ..removeWhere((k, v) => v == null);
+    if (clean.isEmpty) return;
+    await _db.from('crm_tasks').update(clean).eq('id', id);
+  }
+
+  Future<void> deleteCrmTask(String id) async {
+    await _db.from('crm_tasks').delete().eq('id', id);
+  }
+
+  // ── Access Admin ─────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> allUsersForAdmin() async => _rows(
+        await _db
+            .from('final_employees')
+            .select(
+                'id, full_name, email, role, status, approval_status, department, joined_on')
+            .order('full_name', ascending: true));
+
+  Future<void> updateUserRole(String id, String role) async {
+    await _db.from('final_employees').update({'role': role}).eq('id', id);
+  }
+
+  Future<void> updateUserApproval(String id, String approvalStatus) async {
+    await _db
+        .from('final_employees')
+        .update({'approval_status': approvalStatus}).eq('id', id);
+  }
+
+  Future<void> updateUserStatus(String id, String status) async {
+    await _db.from('final_employees').update({'status': status}).eq('id', id);
+  }
+
   // ── Notifications ────────────────────────────────────────────────
   /// Aggregates actionable items for the signed-in user, mirroring the web
   /// app's `/api/notifications` route (role-aware).

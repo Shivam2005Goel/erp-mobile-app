@@ -4,6 +4,7 @@ import '../../data/erp_repository.dart';
 import '../../widgets/crud_list.dart';
 import '../../widgets/erp_ui.dart';
 import '../../widgets/record_form.dart';
+import 'crm_deal_detail.dart';
 
 // ── Pipeline stages (matches web app crmEntities.PIPELINE_STAGES exactly) ────
 class _Stage {
@@ -374,6 +375,7 @@ class _PipelineBoardState extends State<_PipelineBoard> {
   }
 }
 
+// ── Stage column with DragTarget ─────────────────────────────────────────────
 class _StageColumn extends StatelessWidget {
   final _Stage stage;
   final List<Map<String, dynamic>> items;
@@ -389,55 +391,76 @@ class _StageColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = stage.color;
     final total = items.fold<num>(0, (s, o) => s + (num.tryParse('${o['amount'] ?? 0}') ?? 0));
-    return Container(
-      width: 260,
-      margin: const EdgeInsets.only(right: 12, bottom: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-            ),
-            child: Row(children: [
-              Expanded(child: Text(stage.label,
-                  style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 13))),
-              StatusChip('${items.length}', color: color),
-            ]),
-          ),
-          if (total > 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Text(fmtInr(total),
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
-            ),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 480),
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(8),
-              children: items.map((o) => _OppCard(
-                    opp: o, stage: stage,
-                    onMove: onMove,
-                    onEdit: () => onEdit(o),
-                    onDelete: () => onDelete(o),
-                  )).toList(),
+    return DragTarget<Map<String, dynamic>>(
+      onWillAcceptWithDetails: (d) =>
+          (d.data['stage']?.toString().toUpperCase() ?? 'NEW') != stage.value,
+      onAcceptWithDetails: (d) => onMove(d.data, stage.value),
+      builder: (ctx, candidate, _) {
+        final isTarget = candidate.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 260,
+          margin: const EdgeInsets.only(right: 12, bottom: 12),
+          decoration: BoxDecoration(
+            color: isTarget
+                ? color.withValues(alpha: 0.06)
+                : Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isTarget ? color : color.withValues(alpha: 0.4),
+              width: isTarget ? 2 : 1,
             ),
           ),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: isTarget ? 0.2 : 0.12),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+                ),
+                child: Row(children: [
+                  Expanded(child: Text(stage.label,
+                      style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 13))),
+                  StatusChip('${items.length}', color: color),
+                ]),
+              ),
+              if (total > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Text(fmtInr(total),
+                      style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
+                ),
+              if (isTarget)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                  child: Text('Drop here →',
+                      style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+                ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 520),
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(8),
+                  children: items.map((o) => _OppCard(
+                        opp: o, stage: stage,
+                        onMove: onMove,
+                        onEdit: () => onEdit(o),
+                        onDelete: () => onDelete(o),
+                      )).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
+// ── Pipeline card with LongPressDraggable ─────────────────────────────────────
 class _OppCard extends StatelessWidget {
   final Map<String, dynamic> opp;
   final _Stage stage;
@@ -449,72 +472,289 @@ class _OppCard extends StatelessWidget {
     required this.onMove, required this.onEdit, required this.onDelete,
   });
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _cardBody(BuildContext context, {required bool showMenu}) {
+    final color = stage.color;
+    final product = str(opp['product_name'], str(opp['product_type'], ''));
+    final hasProduct = product != '—';
+    final contact = str(opp['contact_number'], str(opp['email'], ''));
+    final hasContact = contact != '—';
+    final hasLocation = (opp['location']?.toString().trim() ?? '').isNotEmpty;
+    final hasSource   = (opp['lead_type']?.toString().trim() ?? '').isNotEmpty;
+    final hasBy       = (opp['contacted_by']?.toString().trim() ?? '').isNotEmpty;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
         onTap: onEdit,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.fromLTRB(10, 8, 6, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                if (opp['is_hot'] == true) ...[
-                  const Icon(Icons.local_fire_department, size: 15, color: kDanger),
-                  const SizedBox(width: 4),
-                ],
+              // Row 1: hot flag + name + menu
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (opp['is_hot'] == true) const Padding(
+                  padding: EdgeInsets.only(top: 2, right: 4),
+                  child: Icon(Icons.local_fire_department, size: 13, color: kDanger)),
                 Expanded(child: Text(str(opp['name']),
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5))),
-                PopupMenuButton<String>(
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    overflow: TextOverflow.ellipsis, maxLines: 2)),
+                if (showMenu) PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, size: 18),
                   padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                   onSelected: (v) {
-                    if (v == 'edit') onEdit();
+                    if (v == 'edit')   onEdit();
                     if (v == 'delete') onDelete();
                     if (v.startsWith('move:')) onMove(opp, v.substring(5));
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'edit',   child: Text('Edit')),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    const PopupMenuItem(value: 'edit',   child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined, size: 16), title: Text('Edit'))),
+                    const PopupMenuItem(value: 'delete', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline, size: 16, color: kDanger), title: Text('Delete', style: TextStyle(color: kDanger)))),
                     const PopupMenuDivider(),
                     ..._stages.where((s) => s.value != stage.value).map((s) =>
-                        PopupMenuItem(value: 'move:${s.value}', child: Text('Move to ${s.label}'))),
+                        PopupMenuItem(value: 'move:${s.value}',
+                            child: Text('→ ${s.label}', style: const TextStyle(fontSize: 13)))),
                   ],
                 ),
               ]),
+              // Row 2: company name
               if ((opp['company_name']?.toString().trim() ?? '').isNotEmpty)
-                Text(str(opp['company_name']),
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
-              if ((opp['client_type']?.toString().trim() ?? '').isNotEmpty)
-                Text(str(opp['client_type']),
-                    style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color)),
-              const SizedBox(height: 6),
-              Row(children: [
-                if (opp['amount'] != null) ...[
-                  Text(fmtInr(opp['amount']),
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5)),
-                  const Spacer(),
-                ],
-                if ((opp['location']?.toString().trim() ?? '').isNotEmpty)
-                  Flexible(child: Text(str(opp['location']),
-                      style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color),
-                      overflow: TextOverflow.ellipsis)),
-              ]),
-              if ((opp['contacted_by']?.toString().trim() ?? '').isNotEmpty)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text('via ${str(opp['contacted_by'])}',
-                      style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color)),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(str(opp['company_name']),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis),
                 ),
+              // Row 3: product chip
+              if (hasProduct) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(product,
+                      style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ],
+              const SizedBox(height: 6),
+              // Row 4: amount + location
+              if (opp['amount'] != null || hasLocation)
+                Row(children: [
+                  if (opp['amount'] != null)
+                    Text(fmtInr(opp['amount']),
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: kBrand)),
+                  if (opp['amount'] != null && hasLocation) const SizedBox(width: 8),
+                  if (hasLocation)
+                    Expanded(child: Row(children: [
+                      const Icon(Icons.location_on_outlined, size: 11, color: Colors.grey),
+                      const SizedBox(width: 2),
+                      Expanded(child: Text(str(opp['location']),
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis)),
+                    ])),
+                ]),
+              // Row 5: source + contacted_by
+              if (hasSource || hasBy) ...[
+                const SizedBox(height: 4),
+                Row(children: [
+                  if (hasSource) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: kInfo.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(str(opp['lead_type']),
+                          style: const TextStyle(fontSize: 10, color: kInfo)),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  if (hasBy)
+                    Expanded(child: Text('via ${str(opp['contacted_by'])}',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis)),
+                ]),
+              ],
+              // Row 6: contact number
+              if (hasContact) ...[
+                const SizedBox(height: 3),
+                Row(children: [
+                  const Icon(Icons.phone_outlined, size: 11, color: Colors.grey),
+                  const SizedBox(width: 3),
+                  Flexible(child: Text(contact,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis)),
+                ]),
+              ],
+              // Row 7: client type + lead date
+              if ((opp['client_type']?.toString().trim() ?? '').isNotEmpty ||
+                  opp['lead_date'] != null) ...[
+                const SizedBox(height: 3),
+                Row(children: [
+                  if ((opp['client_type']?.toString().trim() ?? '').isNotEmpty)
+                    Expanded(child: Text(str(opp['client_type']),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis)),
+                  if (opp['lead_date'] != null)
+                    Text(fmtDate(opp['lead_date']),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                ]),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return LongPressDraggable<Map<String, dynamic>>(
+      data: opp,
+      feedback: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(width: 240, child: _cardBody(context, showMenu: false)),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: _cardBody(context, showMenu: false)),
+      child: _cardBody(context, showMenu: true),
+    );
+  }
+}
+
+// ── Opportunity detail bottom sheet ──────────────────────────────────────────
+void _showOppDetail(BuildContext context, Map<String, dynamic> opp) {
+  final stageObj = _stages.firstWhere(
+    (s) => s.value == (opp['stage']?.toString().toUpperCase() ?? ''),
+    orElse: () => const _Stage('', 'Unknown', Color(0xFF94A3B8)),
+  );
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 1.0,
+      expand: false,
+      builder: (_, sc) => ListView(
+        controller: sc,
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        children: [
+          Center(child: Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: Colors.grey[400], borderRadius: BorderRadius.circular(2)))),
+          // Title row
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (opp['is_hot'] == true) const Padding(
+              padding: EdgeInsets.only(right: 6, top: 3),
+              child: Icon(Icons.local_fire_department, color: kDanger, size: 20)),
+            Expanded(child: Text(str(opp['name']),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(ctx),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+          ]),
+          if ((opp['company_name']?.toString().trim() ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(str(opp['company_name']),
+                  style: const TextStyle(fontSize: 13.5, color: Colors.grey)),
+            ),
+          const SizedBox(height: 10),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            StatusChip(stageObj.label, color: stageObj.color),
+            if (opp['is_hot'] == true)
+              const StatusChip('HOT', color: kDanger),
+            if ((opp['client_type']?.toString().trim() ?? '').isNotEmpty)
+              StatusChip(str(opp['client_type']), color: kInfo),
+          ]),
+          const SizedBox(height: 16),
+          const Divider(),
+          // Product & Finance
+          if ((opp['product_name']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Product', str(opp['product_name'])),
+          if ((opp['product_type']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Category', str(opp['product_type'])),
+          if (opp['amount'] != null)
+            InfoRow('Budget', '${fmtInr(opp['amount'])} ${str(opp['currency'], '')}'),
+          if (opp['offered_price'] != null)
+            InfoRow('Offered Price', fmtInr(opp['offered_price'])),
+          // Source & Contact
+          const Divider(height: 24),
+          if ((opp['lead_type']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Lead Source', str(opp['lead_type'])),
+          if ((opp['contacted_by']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Contacted By', str(opp['contacted_by'])),
+          if ((opp['contact_mode']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Contact Mode', str(opp['contact_mode'])),
+          if ((opp['contact_number']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Phone', str(opp['contact_number'])),
+          if ((opp['email']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Email', str(opp['email'])),
+          // Location
+          const Divider(height: 24),
+          if ((opp['location']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Location', str(opp['location'])),
+          if ((opp['country']?.toString().trim() ?? '').isNotEmpty)
+            InfoRow('Country', str(opp['country'])),
+          // Dates
+          const Divider(height: 24),
+          if (opp['lead_date'] != null)
+            InfoRow('Lead Date', fmtDate(opp['lead_date'])),
+          if (opp['meeting_at'] != null)
+            InfoRow('Meeting Date', fmtDate(opp['meeting_at'])),
+          if (opp['expected_delivery'] != null)
+            InfoRow('Expected Delivery', fmtDate(opp['expected_delivery'])),
+          if (opp['close_date'] != null)
+            InfoRow('Close Date', fmtDate(opp['close_date'])),
+          // Remarks
+          if ((opp['remarks']?.toString().trim() ?? '').isNotEmpty) ...[
+            const Divider(height: 24),
+            const Text('Remarks',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            Text(opp['remarks'].toString(),
+                style: const TextStyle(fontSize: 13.5)),
+          ],
+          if ((opp['spec_sheet_url']?.toString().trim() ?? '').isNotEmpty) ...[
+            const Divider(height: 24),
+            InfoRow('Spec Sheet', str(opp['spec_sheet_url'])),
+          ],
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.notes, size: 16),
+              label: const Text('Notes / Tasks / Activity'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CrmDealDetail(opp: opp),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 // ── CRM Overview ──────────────────────────────────────────────────────────────
@@ -551,7 +791,8 @@ class _CrmOverviewState extends State<_CrmOverview> {
         final active = _showClients ? clients : leads;
         final q = _query.trim().toLowerCase();
         final filtered = q.isEmpty ? active : active.where((o) {
-          for (final k in ['name', 'client_type', 'location', 'product_name', 'contact_number', 'email', 'company_name']) {
+          for (final k in ['name', 'client_type', 'location', 'product_name',
+              'contact_number', 'email', 'company_name', 'lead_type', 'contacted_by']) {
             if ((o[k]?.toString().toLowerCase() ?? '').contains(q)) return true;
           }
           return false;
@@ -563,32 +804,32 @@ class _CrmOverviewState extends State<_CrmOverview> {
             // ── KPI row ────────────────────────────────────────────────
             MetricRow(children: [
               MetricCard(label: 'Active Leads',  value: '${leads.length}',  icon: Icons.people_outline),
-              MetricCard(label: 'Clients',       value: '${clients.length}', icon: Icons.business,               color: kSuccess),
-              MetricCard(label: 'Hot Leads',     value: '$hotLeads',         icon: Icons.local_fire_department,   color: kDanger),
-              MetricCard(label: 'Deal Value',    value: fmtInr(dealValue),   icon: Icons.currency_rupee,          color: kBrand),
+              MetricCard(label: 'Clients',       value: '${clients.length}', icon: Icons.business,             color: kSuccess),
+              MetricCard(label: 'Hot Leads',     value: '$hotLeads',         icon: Icons.local_fire_department, color: kDanger),
+              MetricCard(label: 'Deal Value',    value: fmtInr(dealValue),   icon: Icons.currency_rupee,        color: kBrand),
             ]),
             const SizedBox(height: 18),
 
-            // ── Toggle Leads / Clients ─────────────────────────────────
+            // ── Toggle ─────────────────────────────────────────────────
             Row(children: [
-              _ToggleBtn(label: 'Leads   ${leads.length}',   active: !_showClients,
+              _ToggleBtn(label: 'Leads ${leads.length}',   active: !_showClients,
                   onTap: () => setState(() { _showClients = false; _query = ''; _ctrl.clear(); }),
                   leftRounded: true),
-              _ToggleBtn(label: 'Clients  ${clients.length}', active: _showClients,
+              _ToggleBtn(label: 'Clients ${clients.length}', active: _showClients,
                   onTap: () => setState(() { _showClients = true;  _query = ''; _ctrl.clear(); }),
                   leftRounded: false),
               const Spacer(),
-              Text('${filtered.length} records',
+              Text('${filtered.length} shown',
                   style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
             ]),
             const SizedBox(height: 12),
 
-            // ── Search bar ─────────────────────────────────────────────
+            // ── Search ─────────────────────────────────────────────────
             TextField(
               controller: _ctrl,
               onChanged: (v) => setState(() => _query = v),
               decoration: InputDecoration(
-                hintText: 'Search by name, location, product, contact…',
+                hintText: 'Search name, location, product, contact…',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 isDense: true,
                 suffixIcon: _query.isNotEmpty
@@ -600,27 +841,14 @@ class _CrmOverviewState extends State<_CrmOverview> {
             ),
             const SizedBox(height: 14),
 
-            // ── Table ──────────────────────────────────────────────────
+            // ── Cards ─────────────────────────────────────────────────
             if (filtered.isEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 40),
                 child: Center(child: Text('No records found.')),
               )
-            else ...[
-              // Column headers
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                child: Row(children: const [
-                  Expanded(flex: 3, child: Text('Client',   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                  Expanded(flex: 2, child: Text('Category', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                  Expanded(flex: 2, child: Text('Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                  Expanded(flex: 2, child: Text('Product',  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                  Text('Stage', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                ]),
-              ),
-              const Divider(height: 1),
-              ...filtered.map((o) => _CrmRow(opp: o, isClient: _showClients)),
-            ],
+            else
+              ...filtered.map((o) => _OppOverviewCard(opp: o, isClient: _showClients)),
           ],
         );
       },
@@ -652,67 +880,123 @@ class _ToggleBtn extends StatelessWidget {
         child: Text(label,
             style: TextStyle(
                 color: active ? Colors.white : kBrand,
-                fontWeight: FontWeight.w700,
-                fontSize: 13)),
+                fontWeight: FontWeight.w700, fontSize: 13)),
       ),
     );
   }
 }
 
-class _CrmRow extends StatelessWidget {
+// ── Overview card (tap to see full detail) ────────────────────────────────────
+class _OppOverviewCard extends StatelessWidget {
   final Map<String, dynamic> opp;
   final bool isClient;
-  const _CrmRow({required this.opp, required this.isClient});
+  const _OppOverviewCard({required this.opp, required this.isClient});
 
   @override
   Widget build(BuildContext context) {
     final stageObj = _stages.firstWhere(
-      (s) => s.value == (opp['stage']?.toString() ?? ''),
-      orElse: () => const _Stage('', '—', Color(0xFF94A3B8)),
+      (s) => s.value == (opp['stage']?.toString().toUpperCase() ?? ''),
+      orElse: () => const _Stage('', 'Unknown', Color(0xFF94A3B8)),
     );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      child: Row(children: [
-        Expanded(
-          flex: 3,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              if (opp['is_hot'] == true) const Icon(Icons.local_fire_department, size: 12, color: kDanger),
-              if (opp['is_hot'] == true) const SizedBox(width: 3),
-              Expanded(child: Text(str(opp['name']),
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  overflow: TextOverflow.ellipsis)),
-            ]),
-            if ((opp['company_name']?.toString().trim() ?? '').isNotEmpty)
-              Text(str(opp['company_name']),
-                  style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color),
-                  overflow: TextOverflow.ellipsis),
-          ]),
+    final product = str(opp['product_name'], str(opp['product_type'], ''));
+    final hasProduct = product != '—';
+    final contact = str(opp['contact_number'], str(opp['email'], ''));
+    final hasContact = contact != '—';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: 1,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showOppDetail(context, opp),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: name + hot + stage chip
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (opp['is_hot'] == true) const Padding(
+                  padding: EdgeInsets.only(right: 5, top: 2),
+                  child: Icon(Icons.local_fire_department, size: 14, color: kDanger)),
+                Expanded(child: Text(str(opp['name']),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                    overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 8),
+                StatusChip(stageObj.label, color: stageObj.color),
+              ]),
+              // company name
+              if ((opp['company_name']?.toString().trim() ?? '').isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(str(opp['company_name']),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis),
+                ),
+              const SizedBox(height: 8),
+              // product
+              if (hasProduct)
+                Row(children: [
+                  const Icon(Icons.inventory_2_outlined, size: 13, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(product,
+                      style: const TextStyle(fontSize: 12.5),
+                      overflow: TextOverflow.ellipsis)),
+                ]),
+              const SizedBox(height: 6),
+              // amount + location
+              Row(children: [
+                if (opp['amount'] != null) ...[
+                  const Icon(Icons.currency_rupee, size: 13, color: kBrand),
+                  Text(fmtInr(opp['amount']),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: kBrand)),
+                  const SizedBox(width: 10),
+                ],
+                if ((opp['location']?.toString().trim() ?? '').isNotEmpty)
+                  Expanded(child: Row(children: [
+                    const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
+                    const SizedBox(width: 3),
+                    Expanded(child: Text(str(opp['location']),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis)),
+                  ])),
+              ]),
+              // contact + source
+              if (hasContact || (opp['lead_type']?.toString().trim() ?? '').isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(children: [
+                  if (hasContact) ...[
+                    const Icon(Icons.phone_outlined, size: 12, color: Colors.grey),
+                    const SizedBox(width: 3),
+                    Text(contact, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    const SizedBox(width: 10),
+                  ],
+                  if ((opp['lead_type']?.toString().trim() ?? '').isNotEmpty)
+                    StatusChip(str(opp['lead_type']), color: kInfo),
+                  if ((opp['contacted_by']?.toString().trim() ?? '').isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Text('via ${str(opp['contacted_by'])}',
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  ],
+                ]),
+              ],
+              // for clients: show amount prominently if not shown above
+              if (isClient && opp['amount'] == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('Deal closed', style: TextStyle(fontSize: 12, color: kSuccess)),
+                ),
+              // tap hint
+              const SizedBox(height: 6),
+              Row(children: [
+                const Spacer(),
+                Text('Tap for details →',
+                    style: TextStyle(fontSize: 11, color: kBrand.withValues(alpha: 0.7))),
+              ]),
+            ],
+          ),
         ),
-        Expanded(
-          flex: 2,
-          child: Text(str(opp['client_type'], '—'),
-              style: TextStyle(fontSize: 11.5, color: Theme.of(context).textTheme.bodySmall?.color),
-              overflow: TextOverflow.ellipsis),
-        ),
-        Expanded(
-          flex: 2,
-          child: Text(str(opp['location'], '—'),
-              style: TextStyle(fontSize: 11.5, color: Theme.of(context).textTheme.bodySmall?.color),
-              overflow: TextOverflow.ellipsis),
-        ),
-        Expanded(
-          flex: 2,
-          child: Text(str(opp['product_name'], str(opp['product_type'], '—')),
-              style: const TextStyle(fontSize: 11.5),
-              overflow: TextOverflow.ellipsis),
-        ),
-        if (!isClient)
-          StatusChip(stageObj.label, color: stageObj.color)
-        else
-          Text(str(opp['amount'] != null ? fmtInr(opp['amount']) : null, '—'),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-      ]),
+      ),
     );
   }
 }
