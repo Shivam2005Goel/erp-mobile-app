@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
+import '../../app_state.dart';
 import '../../data/erp_repository.dart';
 import '../../widgets/crud_list.dart';
 import '../../widgets/erp_ui.dart';
 import '../../widgets/record_form.dart';
 
-/// Home dashboard: Notes, Tasks and Calendar — mirrors the Next.js /dashboard/home page.
+/// Home dashboard: Notes, My Tasks and Company Calendar.
 class HomeModule extends StatelessWidget {
   HomeModule({super.key});
   final _repo = ErpRepository();
 
   @override
   Widget build(BuildContext context) {
+    final userName =
+        AppStateScope.of(context).currentUser?.fullName ?? '';
     return DefaultTabController(
       length: 3,
       child: Column(
@@ -21,7 +25,7 @@ class HomeModule extends StatelessWidget {
             tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'Notes'),
-              Tab(text: 'Tasks'),
+              Tab(text: 'My Tasks'),
               Tab(text: 'Calendar'),
             ],
           ),
@@ -29,7 +33,7 @@ class HomeModule extends StatelessWidget {
             child: TabBarView(
               children: [
                 _notesTab(),
-                _tasksTab(),
+                _MyTasksTab(repo: _repo, userName: userName),
                 _CalendarTab(repo: _repo),
               ],
             ),
@@ -57,9 +61,8 @@ class HomeModule extends StatelessWidget {
         tile: (n, onEdit, onDelete) {
           final color = _noteColor(n['color']?.toString());
           final content = (n['content'] ?? '').toString().trim();
-          final firstLine = content.isEmpty
-              ? null
-              : content.split('\n').first.trim();
+          final firstLine =
+              content.isEmpty ? null : content.split('\n').first.trim();
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 5),
             shape:
@@ -98,8 +101,8 @@ class HomeModule extends StatelessWidget {
                     ],
                     const SizedBox(height: 6),
                     Text(fmtDate(n['updated_at'] ?? n['created_at']),
-                        style:
-                            const TextStyle(fontSize: 10.5, color: Colors.grey)),
+                        style: const TextStyle(
+                            fontSize: 10.5, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -108,75 +111,283 @@ class HomeModule extends StatelessWidget {
         },
       );
 
-  Widget _tasksTab() => CrudList(
-        repo: _repo,
-        table: 'tasks',
-        idCol: 'id',
-        addLabel: 'Add Task',
-        editLabel: 'Edit Task',
-        loader: _repo.homeTasks,
-        emptyMessage: 'No tasks yet.',
-        searchFields: const ['task', 'assigned_to'],
-        searchHint: 'Search tasks…',
-        fields: () => const [
-          FieldSpec('task', 'Task', required: true, type: FieldType.multiline),
-          FieldSpec('assigned_to', 'Assigned to'),
-          FieldSpec('assigned_by', 'Assigned by'),
-          FieldSpec('status', 'Status',
-              type: FieldType.dropdown,
-              options: ['Pending', 'In Progress', 'Done', 'Completed']),
-          FieldSpec('start_date', 'Start date', type: FieldType.date),
-          FieldSpec('end_date', 'Due date', type: FieldType.date),
-          FieldSpec('notes', 'Notes', type: FieldType.multiline),
-        ],
-        tile: (t, onEdit, onDelete) {
-          final status = str(t['status'], 'Pending');
-          final overdue = _isOverdue(t['end_date'], status);
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            color: overdue
-                ? kDanger.withValues(alpha: 0.05)
-                : null,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: ListTile(
-              onTap: onEdit,
-              leading: Icon(
-                _taskIcon(status),
-                color: statusColor(status),
-                size: 22,
-              ),
-              title: Text(str(t['task']),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text([
-                if ((t['assigned_to']?.toString().trim() ?? '').isNotEmpty)
-                  'To: ${t['assigned_to']}',
-                if (t['end_date'] != null) 'Due ${fmtDate(t['end_date'])}',
-              ].join(' • ')),
-              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                StatusChip(status, color: statusColor(status)),
-                const SizedBox(width: 4),
-                RowMenu(onEdit: onEdit, onDelete: onDelete),
-              ]),
-            ),
-          );
-        },
-      );
-
   static Color _noteColor(String? s) {
     switch ((s ?? '').toLowerCase()) {
-      case 'red':    return const Color(0xFFef4444);
-      case 'green':  return const Color(0xFF22c55e);
-      case 'blue':   return const Color(0xFF3b82f6);
-      case 'yellow': return const Color(0xFFf59e0b);
-      case 'purple': return const Color(0xFFa855f7);
-      default:       return kBrand;
+      case 'red':
+        return const Color(0xFFef4444);
+      case 'green':
+        return const Color(0xFF22c55e);
+      case 'blue':
+        return const Color(0xFF3b82f6);
+      case 'yellow':
+        return const Color(0xFFf59e0b);
+      case 'purple':
+        return const Color(0xFFa855f7);
+      default:
+        return kBrand;
     }
+  }
+}
+
+// ── My Tasks Tab ──────────────────────────────────────────────────────────────
+class _MyTasksTab extends StatefulWidget {
+  final ErpRepository repo;
+  final String userName;
+  const _MyTasksTab({required this.repo, required this.userName});
+
+  @override
+  State<_MyTasksTab> createState() => _MyTasksTabState();
+}
+
+class _MyTasksTabState extends State<_MyTasksTab> {
+  List<Map<String, dynamic>> _tasks = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final all = await widget.repo.homeTasks();
+      final name = widget.userName.toLowerCase().trim();
+      final mine = name.isEmpty
+          ? all
+          : all
+              .where((t) => (t['assigned_to'] ?? '')
+                  .toString()
+                  .toLowerCase()
+                  .contains(name))
+              .toList();
+      if (mounted) {
+        setState(() {
+          _tasks = mine;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(msg),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'))
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addTask() async {
+    final taskCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    String status = 'Pending';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Add Task'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: taskCtrl,
+                autofocus: true,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                    labelText: 'Task *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              InputDecorator(
+                decoration: const InputDecoration(
+                    labelText: 'Status', border: OutlineInputBorder()),
+                child: DropdownButton<String>(
+                  value: status,
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(value: 'Pending', child: Text('Pending')),
+                    DropdownMenuItem(
+                        value: 'In Progress', child: Text('In Progress')),
+                    DropdownMenuItem(value: 'Done', child: Text('Done')),
+                    DropdownMenuItem(
+                        value: 'Completed', child: Text('Completed')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setSt(() => status = v);
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: notesCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Notes', border: OutlineInputBorder()),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Add')),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    if (taskCtrl.text.trim().isEmpty) {
+      _showError('Task is required.');
+      return;
+    }
+    try {
+      await widget.repo.create('tasks', {
+        'task': taskCtrl.text.trim(),
+        'assigned_to': widget.userName.isEmpty ? null : widget.userName,
+        'assigned_by': 'Mobile App',
+        'status': status,
+        'notes': notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+      });
+      await _load();
+    } catch (e) {
+      _showError('Failed to add task.\n\n$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('Failed: $_error'),
+        ElevatedButton(onPressed: _load, child: const Text('Retry')),
+      ]));
+    }
+
+    final pending = _tasks
+        .where((t) =>
+            !['done', 'completed'].contains(
+                (t['status'] ?? '').toString().toLowerCase()))
+        .length;
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: Stack(
+        children: [
+          _tasks.isEmpty
+              ? ListView(
+                  children: const [
+                    SizedBox(height: 80),
+                    Center(
+                        child: Text('No tasks assigned to you.',
+                            style: TextStyle(color: Colors.grey))),
+                  ],
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                  itemCount: _tasks.length + 1,
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: MetricRow(children: [
+                          MetricCard(
+                              label: 'My Tasks',
+                              value: '${_tasks.length}',
+                              icon: Icons.assignment),
+                          MetricCard(
+                              label: 'Pending',
+                              value: '$pending',
+                              icon: Icons.hourglass_empty,
+                              color: pending > 0 ? kWarning : kSuccess),
+                        ]),
+                      );
+                    }
+                    final t = _tasks[i - 1];
+                    final status = str(t['status'], 'Pending');
+                    final overdue = _isOverdue(t['end_date'], status);
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: overdue
+                          ? kDanger.withValues(alpha: 0.05)
+                          : null,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      child: ListTile(
+                        leading: Icon(_taskIcon(status),
+                            color: statusColor(status), size: 22),
+                        title: Text(str(t['task']),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if ((t['assigned_by']?.toString().trim() ?? '')
+                                .isNotEmpty)
+                              Text('By: ${t['assigned_by']}',
+                                  style: const TextStyle(fontSize: 11)),
+                            if (t['end_date'] != null)
+                              Text(
+                                'Due ${fmtDate(t['end_date'])}',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: overdue ? kDanger : Colors.grey),
+                              ),
+                          ],
+                        ),
+                        isThreeLine: (t['assigned_by']?.toString().trim() ??
+                                '')
+                            .isNotEmpty,
+                        trailing: StatusChip(status,
+                            color: statusColor(status)),
+                      ),
+                    );
+                  },
+                ),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: _addTask,
+              backgroundColor: kBrand,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   static IconData _taskIcon(String status) {
     final s = status.toLowerCase();
-    if (s.contains('done') || s.contains('complete')) return Icons.check_circle;
+    if (s.contains('done') || s.contains('complete')) {
+      return Icons.check_circle;
+    }
     if (s.contains('progress')) return Icons.pending;
     return Icons.radio_button_unchecked;
   }
@@ -186,123 +397,438 @@ class HomeModule extends StatelessWidget {
     final s = status.toLowerCase();
     if (s.contains('done') || s.contains('complete')) return false;
     final d = DateTime.tryParse(endDate.toString());
-    if (d == null) return false;
-    return d.isBefore(DateTime.now());
+    return d != null && d.isBefore(DateTime.now());
   }
 }
 
-// ── Calendar Tab ─────────────────────────────────────────────────────────────
-class _CalendarTab extends StatelessWidget {
+// ── Calendar Tab ──────────────────────────────────────────────────────────────
+class _CalendarTab extends StatefulWidget {
   final ErpRepository repo;
   const _CalendarTab({required this.repo});
 
   @override
-  Widget build(BuildContext context) {
-    return AsyncSection<List<Map<String, dynamic>>>(
-      loader: repo.calendarEvents,
-      isEmpty: (d) => d.isEmpty,
-      emptyMessage: 'No calendar events.',
-      builder: (context, events, refresh) {
-        // Group by month.
-        final byMonth = <String, List<Map<String, dynamic>>>{};
-        for (final e in events) {
-          final raw = e['event_date']?.toString() ?? '';
-          final d = DateTime.tryParse(raw);
-          final key = d != null
-              ? '${d.year}-${d.month.toString().padLeft(2, '0')}'
-              : 'Unknown';
-          byMonth.putIfAbsent(key, () => []).add(e);
-        }
-        final months = byMonth.keys.toList()..sort();
+  State<_CalendarTab> createState() => _CalendarTabState();
+}
 
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          children: [
-            MetricRow(children: [
-              MetricCard(
-                  label: 'Total Events',
-                  value: '${events.length}',
-                  icon: Icons.event),
-              MetricCard(
-                  label: 'Upcoming',
-                  value: '${events.where((e) => _isUpcoming(e['event_date'])).length}',
-                  icon: Icons.upcoming,
-                  color: kSuccess),
+class _CalendarTabState extends State<_CalendarTab> {
+  late DateTime _month;
+  DateTime? _selected;
+  List<Map<String, dynamic>> _events = [];
+  bool _loading = true;
+
+  static const _weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month);
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final events = await widget.repo.calendarEvents();
+    if (mounted) {
+      setState(() {
+        _events = events;
+        _loading = false;
+      });
+    }
+  }
+
+  // Returns events for a given day.
+  List<Map<String, dynamic>> _eventsFor(DateTime day) {
+    return _events.where((e) {
+      final d = DateTime.tryParse(e['event_date']?.toString() ?? '');
+      return d != null &&
+          d.year == day.year &&
+          d.month == day.month &&
+          d.day == day.day;
+    }).toList();
+  }
+
+  void _prevMonth() => setState(
+      () => _month = DateTime(_month.year, _month.month - 1));
+
+  void _nextMonth() => setState(
+      () => _month = DateTime(_month.year, _month.month + 1));
+
+  Future<void> _addEvent() async {
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    String type = 'meeting';
+    String? date = _selected != null
+        ? DateFormat('yyyy-MM-dd').format(_selected!)
+        : DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Add Event'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: titleCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                    labelText: 'Title *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Description', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              InputDecorator(
+                decoration: const InputDecoration(
+                    labelText: 'Type', border: OutlineInputBorder()),
+                child: DropdownButton<String>(
+                  value: type,
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(value: 'meeting', child: Text('Meeting')),
+                    DropdownMenuItem(
+                        value: 'deadline', child: Text('Deadline')),
+                    DropdownMenuItem(
+                        value: 'holiday', child: Text('Holiday')),
+                    DropdownMenuItem(
+                        value: 'reminder', child: Text('Reminder')),
+                    DropdownMenuItem(value: 'event', child: Text('Event')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setSt(() => type = v);
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: DateTime.tryParse(date ?? '') ?? DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                  );
+                  if (picked != null) {
+                    setSt(() =>
+                        date = DateFormat('yyyy-MM-dd').format(picked));
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                      labelText: 'Date', border: OutlineInputBorder()),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today, size: 16),
+                    const SizedBox(width: 8),
+                    Text(date ?? 'Select date'),
+                  ]),
+                ),
+              ),
             ]),
-            const SizedBox(height: 12),
-            for (final month in months) ...[
-              SectionTitle(_monthLabel(month)),
-              ...byMonth[month]!.map((e) => _EventCard(event: e)),
-              const SizedBox(height: 8),
-            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Add')),
           ],
-        );
-      },
+        ),
+      ),
     );
+
+    if (confirmed != true || !mounted) return;
+    if (titleCtrl.text.trim().isEmpty) return;
+    try {
+      await widget.repo.create('calendar_events', {
+        'title': titleCtrl.text.trim(),
+        'description': descCtrl.text.trim().isEmpty
+            ? null
+            : descCtrl.text.trim(),
+        'event_type': type,
+        'event_date': date,
+      });
+      await _load();
+    } catch (_) {}
   }
 
-  static bool _isUpcoming(dynamic v) {
-    final d = DateTime.tryParse((v ?? '').toString());
-    return d != null && d.isAfter(DateTime.now());
-  }
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
 
-  static String _monthLabel(String key) {
-    if (key == 'Unknown') return 'Unknown';
-    final parts = key.split('-');
-    if (parts.length < 2) return key;
-    final months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final m = int.tryParse(parts[1]) ?? 0;
-    return '${m < months.length ? months[m] : parts[1]} ${parts[0]}';
+    final daysInMonth =
+        DateUtils.getDaysInMonth(_month.year, _month.month);
+    final firstWeekday =
+        DateTime(_month.year, _month.month, 1).weekday % 7; // 0=Sun
+    final today = DateTime.now();
+    final selectedEvents =
+        _selected != null ? _eventsFor(_selected!) : <Map<String, dynamic>>[];
+
+    return Column(
+      children: [
+        // ── Header ──────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Row(children: [
+            const Icon(Icons.calendar_month, size: 18),
+            const SizedBox(width: 8),
+            const Text('Company Calendar',
+                style:
+                    TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: _prevMonth,
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                DateFormat('MMMM yyyy').format(_month),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: _nextMonth,
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+            const SizedBox(width: 4),
+            TextButton.icon(
+              onPressed: _addEvent,
+              icon: const Icon(Icons.add, size: 14),
+              label: const Text('Event',
+                  style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: kBrand,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                minimumSize: Size.zero,
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 8),
+        // ── Day-of-week headers ──────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: _weekdays
+                .map((d) => Expanded(
+                      child: Center(
+                        child: Text(d,
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: (d == 'SUN' || d == 'SAT')
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.6)
+                                    : Colors.grey)),
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+        const SizedBox(height: 4),
+        // ── Calendar grid ────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: firstWeekday + daysInMonth,
+            itemBuilder: (_, index) {
+              if (index < firstWeekday) return const SizedBox.shrink();
+              final day = index - firstWeekday + 1;
+              final date = DateTime(_month.year, _month.month, day);
+              final events = _eventsFor(date);
+              final isToday = date.year == today.year &&
+                  date.month == today.month &&
+                  date.day == today.day;
+              final isSelected = _selected != null &&
+                  _selected!.year == date.year &&
+                  _selected!.month == date.month &&
+                  _selected!.day == date.day;
+
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _selected = isSelected ? null : date;
+                }),
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? kBrand
+                        : isToday
+                            ? kBrand.withValues(alpha: 0.15)
+                            : null,
+                    borderRadius: BorderRadius.circular(6),
+                    border: isToday && !isSelected
+                        ? Border.all(
+                            color: kBrand.withValues(alpha: 0.5))
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$day',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isToday || isSelected
+                              ? FontWeight.w700
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.white
+                              : null,
+                        ),
+                      ),
+                      if (events.isNotEmpty)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: events
+                              .take(3)
+                              .map((_) => Container(
+                                    width: 4,
+                                    height: 4,
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 1),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : kBrand,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const Divider(height: 16),
+        // ── Selected day events ──────────────────────────────────────
+        Expanded(
+          child: _selected == null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.touch_app,
+                          color: Colors.grey.withValues(alpha: 0.4),
+                          size: 32),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap a date to see events',
+                        style: TextStyle(
+                            color: Colors.grey.withValues(alpha: 0.6),
+                            fontSize: 13),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_events.length} event${_events.length == 1 ? '' : 's'} this view',
+                        style: TextStyle(
+                            color: Colors.grey.withValues(alpha: 0.5),
+                            fontSize: 11),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      child: Text(
+                        DateFormat('EEEE, d MMMM').format(_selected!),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
+                    ),
+                    if (selectedEvents.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('No events on this day.',
+                            style: TextStyle(
+                                color: Colors.grey, fontSize: 13)),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: selectedEvents.length,
+                          itemBuilder: (_, i) =>
+                              _EventTile(event: selectedEvents[i]),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
   }
 }
 
-class _EventCard extends StatelessWidget {
+class _EventTile extends StatelessWidget {
   final Map<String, dynamic> event;
-  const _EventCard({required this.event});
+  const _EventTile({required this.event});
 
   @override
   Widget build(BuildContext context) {
     final type = str(event['event_type'], 'event');
-    final upcoming = _CalendarTab._isUpcoming(event['event_date']);
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
+        dense: true,
         leading: CircleAvatar(
-          backgroundColor: (upcoming ? kBrand : Colors.grey)
-              .withValues(alpha: 0.12),
-          child: Icon(
-            _typeIcon(type),
-            size: 18,
-            color: upcoming ? kBrand : Colors.grey,
-          ),
+          radius: 16,
+          backgroundColor: kBrand.withValues(alpha: 0.12),
+          child: Icon(_typeIcon(type), size: 15, color: kBrand),
         ),
         title: Text(str(event['title']),
             style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if ((event['description']?.toString().trim() ?? '').isNotEmpty)
-              Text(str(event['description']),
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12)),
-            Text(fmtDate(event['event_date']),
-                style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
-        ),
-        isThreeLine: (event['description']?.toString().trim() ?? '').isNotEmpty,
-        trailing: StatusChip(type,
-            color: upcoming ? kBrand : Colors.grey),
+        subtitle: (event['description']?.toString().trim() ?? '').isNotEmpty
+            ? Text(str(event['description']),
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11))
+            : null,
+        trailing: StatusChip(type, color: kBrand),
       ),
     );
   }
 
   static IconData _typeIcon(String type) {
     switch (type.toLowerCase()) {
-      case 'meeting':   return Icons.groups;
-      case 'deadline':  return Icons.timer;
-      case 'holiday':   return Icons.beach_access;
-      case 'reminder':  return Icons.notifications;
-      default:          return Icons.event;
+      case 'meeting':
+        return Icons.groups;
+      case 'deadline':
+        return Icons.timer;
+      case 'holiday':
+        return Icons.beach_access;
+      case 'reminder':
+        return Icons.notifications;
+      default:
+        return Icons.event;
     }
   }
 }
