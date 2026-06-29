@@ -187,68 +187,251 @@ class _PersonTaskCardState extends State<_PersonTaskCard> {
 
   Future<void> _assignTask() async {
     final taskCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
     String status = 'Not Started';
+    String? startDate;
+    String? endDate;
+
+    Future<String?> pickDate(BuildContext ctx, String? current) async {
+      final picked = await showDatePicker(
+        context: ctx,
+        initialDate: (current != null ? DateTime.tryParse(current) : null) ??
+            DateTime.now(),
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2030),
+      );
+      if (picked == null) return current;
+      return '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          title: Text('Assign Task to ${widget.person}'),
+          title: Row(children: [
+            Expanded(
+              child: Text(
+                'ADD TASK — ${widget.person.toUpperCase()}',
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => Navigator.pop(ctx, false),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+          ]),
+          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: taskCtrl,
-                autofocus: true,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                    labelText: 'Task *', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              InputDecorator(
-                decoration: const InputDecoration(
-                    labelText: 'Status', border: OutlineInputBorder()),
-                child: DropdownButton<String>(
-                  value: status,
-                  isExpanded: true,
-                  underline: const SizedBox.shrink(),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'Not Started', child: Text('Not Started')),
-                    DropdownMenuItem(
-                        value: 'In Progress', child: Text('In Progress')),
-                    DropdownMenuItem(value: 'Done', child: Text('Done')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setSt(() => status = v);
-                  },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Task
+                const Text('TASK *',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey,
+                        letterSpacing: 0.5)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: taskCtrl,
+                  autofocus: true,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Describe the task...',
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
                 ),
-              ),
-            ]),
+                const SizedBox(height: 14),
+                // Status
+                const Text('STATUS',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey,
+                        letterSpacing: 0.5)),
+                const SizedBox(height: 6),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 4)),
+                  child: DropdownButton<String>(
+                    value: status,
+                    isExpanded: true,
+                    underline: const SizedBox.shrink(),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'Not Started', child: Text('Not Started')),
+                      DropdownMenuItem(
+                          value: 'In Progress', child: Text('In Progress')),
+                      DropdownMenuItem(
+                          value: 'Pending', child: Text('Pending')),
+                      DropdownMenuItem(
+                          value: 'Done', child: Text('Done')),
+                      DropdownMenuItem(
+                          value: 'Completed', child: Text('Completed')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setSt(() => status = v);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Start / End dates side by side
+                Row(children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('START DATE',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey,
+                                letterSpacing: 0.5)),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () async {
+                            final d = await pickDate(ctx, startDate);
+                            setSt(() => startDate = d);
+                          },
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 10)),
+                            child: Row(children: [
+                              Expanded(
+                                child: Text(
+                                  startDate ?? 'dd-mm-yyyy',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: startDate != null
+                                          ? null
+                                          : Colors.grey),
+                                ),
+                              ),
+                              const Icon(Icons.calendar_today, size: 14),
+                            ]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('END DATE',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey,
+                                letterSpacing: 0.5)),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () async {
+                            final d = await pickDate(ctx, endDate);
+                            setSt(() => endDate = d);
+                          },
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 10)),
+                            child: Row(children: [
+                              Expanded(
+                                child: Text(
+                                  endDate ?? 'dd-mm-yyyy',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: endDate != null
+                                          ? null
+                                          : Colors.grey),
+                                ),
+                              ),
+                              const Icon(Icons.calendar_today, size: 14),
+                            ]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 14),
+                // Notes
+                const Text('NOTES',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey,
+                        letterSpacing: 0.5)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: notesCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Optional notes...',
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+            ),
           ),
+          actionsPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Assign')),
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kBrand,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Add Task'),
+            ),
           ],
         ),
       ),
     );
 
     if (confirmed != true || !mounted) return;
-    if (taskCtrl.text.trim().isEmpty) return;
+    final taskText = taskCtrl.text.trim();
+    if (taskText.isEmpty) {
+      _showError('Task description is required.');
+      return;
+    }
     try {
-      await widget.repo.create('tasks', {
-        'task': taskCtrl.text.trim(),
+      final data = <String, dynamic>{
+        'task': taskText,
         'assigned_to': widget.person,
         'assigned_by': 'Team argmac',
         'status': status,
-      });
+      };
+      if (startDate != null) data['start_date'] = startDate;
+      if (endDate != null) data['end_date'] = endDate;
+      final notes = notesCtrl.text.trim();
+      if (notes.isNotEmpty) data['notes'] = notes;
+
+      await widget.repo.create('tasks', data);
       widget.onRefresh();
     } catch (e) {
-      _showError('Failed to assign task.\n\n$e');
+      _showError('Failed to save task.\n\n$e');
     }
   }
 
