@@ -574,48 +574,58 @@ class _CalendarTabState extends State<_CalendarTab> {
         // ── Header ──────────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Row(children: [
-            const Icon(Icons.calendar_month, size: 18),
-            const SizedBox(width: 8),
-            const Text('Company Calendar',
-                style:
-                    TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              onPressed: _prevMonth,
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                DateFormat('MMMM yyyy').format(_month),
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: _nextMonth,
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-            ),
-            const SizedBox(width: 4),
-            TextButton.icon(
-              onPressed: _addEvent,
-              icon: const Icon(Icons.add, size: 14),
-              label: const Text('Event',
-                  style: TextStyle(fontSize: 12)),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: kBrand,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                minimumSize: Size.zero,
-              ),
-            ),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: title + add button
+              Row(children: [
+                const Icon(Icons.calendar_month, size: 18),
+                const SizedBox(width: 8),
+                const Text('Company Calendar',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 15)),
+                const Spacer(),
+                ElevatedButton.icon(
+                  onPressed: _addEvent,
+                  icon: const Icon(Icons.add, size: 14),
+                  label: const Text('Event',
+                      style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kBrand,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    elevation: 0,
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              // Row 2: month navigation centered
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _prevMonth,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  DateFormat('MMMM yyyy').format(_month),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _nextMonth,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+              ]),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         // ── Day-of-week headers ──────────────────────────────────────
