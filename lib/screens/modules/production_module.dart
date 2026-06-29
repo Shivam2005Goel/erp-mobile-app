@@ -518,94 +518,60 @@ class _PersonTaskCardState extends State<_PersonTaskCard> {
           // ── Task list (when expanded) ──────────────────────────────
           if (_expanded) ...[
             const Divider(height: 1),
-            // Column headers
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-              child: Row(children: const [
-                Expanded(
-                    flex: 5,
-                    child: Text('TASK',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey,
-                            letterSpacing: 0.5))),
-                SizedBox(width: 8),
-                SizedBox(
-                    width: 72,
-                    child: Text('STATUS',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey,
-                            letterSpacing: 0.5))),
-                SizedBox(width: 8),
-                SizedBox(
-                    width: 60,
-                    child: Text('DUE',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey,
-                            letterSpacing: 0.5))),
-              ]),
-            ),
             ...widget.tasks.map((t) {
               final status = str(t['status'], 'Pending');
               final overdue = _isOverdue(t['end_date'], status);
+              final assignedBy = t['assigned_by']?.toString().trim() ?? '';
+              final notes = t['notes']?.toString().trim() ?? '';
               return Container(
                 decoration: BoxDecoration(
-                  color: overdue
-                      ? kDanger.withValues(alpha: 0.04)
-                      : null,
+                  color: overdue ? kDanger.withValues(alpha: 0.04) : null,
                   border: Border(
                       top: BorderSide(
-                          color: Colors.grey.withValues(alpha: 0.1))),
+                          color: Colors.grey.withValues(alpha: 0.12))),
                 ),
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: 5,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(str(t['task']),
-                              style: const TextStyle(fontSize: 13)),
-                          if ((t['assigned_by']?.toString().trim() ?? '')
-                              .isNotEmpty)
-                            Text('By: ${t['assigned_by']}',
-                                style: const TextStyle(
-                                    fontSize: 11, color: Colors.grey)),
-                          if ((t['notes']?.toString().trim() ?? '')
-                              .isNotEmpty)
-                            Text(str(t['notes']),
-                                style: const TextStyle(
-                                    fontSize: 11, color: Colors.grey),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                        ],
-                      ),
+                    // Task text — full width, wraps freely
+                    Text(
+                      str(t['task']),
+                      style: const TextStyle(fontSize: 13),
                     ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 72,
-                      child: StatusChip(status,
-                          color: statusColor(status)),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 60,
-                      child: Text(
-                        t['end_date'] != null
-                            ? fmtDate(t['end_date'])
-                            : '—',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: overdue ? kDanger : Colors.grey),
-                      ),
-                    ),
+                    if (assignedBy.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text('Assigned by: $assignedBy',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey)),
+                    ],
+                    if (notes.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(notes,
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                    const SizedBox(height: 6),
+                    // Status chip + due date on one flexible row
+                    Row(children: [
+                      StatusChip(status, color: statusColor(status)),
+                      const SizedBox(width: 8),
+                      if (t['end_date'] != null)
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.calendar_today,
+                              size: 11,
+                              color: overdue ? kDanger : Colors.grey),
+                          const SizedBox(width: 3),
+                          Text(
+                            fmtDate(t['end_date']),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: overdue ? kDanger : Colors.grey),
+                          ),
+                        ]),
+                    ]),
                   ],
                 ),
               );
