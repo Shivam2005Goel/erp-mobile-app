@@ -166,9 +166,8 @@ class _UsersTabState extends State<_UsersTab> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(children: [
+            child: MetricRow(children: [
               MetricCard(label: 'Total Users', value: '${_users.length}', icon: Icons.people),
-              const SizedBox(width: 10),
               MetricCard(
                 label: 'Active',
                 value: '${_users.where((u) => u['status'] == 'active').length}',
