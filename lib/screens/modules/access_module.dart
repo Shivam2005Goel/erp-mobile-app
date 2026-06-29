@@ -122,8 +122,8 @@ class _UsersTabState extends State<_UsersTab> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await _repo.updateUserRole(u['id'].toString(), role);
-      await _repo.updateUserStatus(u['id'].toString(), status);
+      await _repo.updateUserRole(u['employee_id'].toString(), role);
+      await _repo.updateUserStatus(u['employee_id'].toString(), status);
       await _load();
     } catch (e) {
       _showError('Failed to update user.\n\n$e');
@@ -303,8 +303,8 @@ class _PendingTabState extends State<_PendingTab> {
 
   Future<void> _approve(Map<String, dynamic> u) async {
     try {
-      await _repo.updateUserApproval(u['id'].toString(), 'approved');
-      await _repo.updateUserStatus(u['id'].toString(), 'active');
+      await _repo.updateUserApproval(u['employee_id'].toString(), 'approved');
+      await _repo.updateUserStatus(u['employee_id'].toString(), 'active');
       await _load();
     } catch (e) {
       _showError('Failed to approve user.\n\n$e');
@@ -329,7 +329,7 @@ class _PendingTabState extends State<_PendingTab> {
     );
     if (ok != true || !mounted) return;
     try {
-      await _repo.updateUserApproval(u['id'].toString(), 'rejected');
+      await _repo.updateUserApproval(u['employee_id'].toString(), 'rejected');
       await _load();
     } catch (e) {
       _showError('Failed to reject user.\n\n$e');

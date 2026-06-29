@@ -353,24 +353,49 @@ class ErpRepository {
   }
 
   // ── Home ─────────────────────────────────────────────────────────
-  Future<List<Map<String, dynamic>>> homeNotes() async => _rows(
-        await _db.from('home_notes').select('*').order('updated_at', ascending: false));
+  Future<List<Map<String, dynamic>>> homeNotes() async {
+    try {
+      return _rows(await _db.from('home_notes').select('*').order('updated_at', ascending: false));
+    } catch (_) {
+      return [];
+    }
+  }
 
   Future<List<Map<String, dynamic>>> homeTasks() async => _rows(
         await _db.from('tasks').select('*').order('created_at', ascending: false).limit(100));
 
-  Future<List<Map<String, dynamic>>> calendarEvents() async => _rows(
-        await _db.from('calendar_events').select('*').order('event_date', ascending: true));
+  Future<List<Map<String, dynamic>>> calendarEvents() async {
+    try {
+      return _rows(await _db.from('calendar_events').select('*').order('event_date', ascending: true));
+    } catch (_) {
+      return [];
+    }
+  }
 
   // ── CRM per-deal notes / activities / tasks ───────────────────────
-  Future<List<Map<String, dynamic>>> crmNotesByTarget(String targetId) async => _rows(
-        await _db.from('crm_notes').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+  Future<List<Map<String, dynamic>>> crmNotesByTarget(String targetId) async {
+    try {
+      return _rows(await _db.from('crm_notes').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+    } catch (_) {
+      return [];
+    }
+  }
 
-  Future<List<Map<String, dynamic>>> crmActivitiesByTarget(String targetId) async => _rows(
-        await _db.from('crm_activities').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+  Future<List<Map<String, dynamic>>> crmActivitiesByTarget(String targetId) async {
+    try {
+      return _rows(await _db.from('crm_activities').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+    } catch (_) {
+      return [];
+    }
+  }
 
-  Future<List<Map<String, dynamic>>> crmTasksByTarget(String targetId) async => _rows(
-        await _db.from('crm_tasks').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+  Future<List<Map<String, dynamic>>> crmTasksByTarget(String targetId) async {
+    try {
+      return _rows(await _db.from('crm_tasks').select('*').eq('target_id', targetId).order('created_at', ascending: false));
+    } catch (_) {
+      return [];
+    }
+  }
 
   Future<void> addCrmNote(
       String targetId, String targetType, String note, String author) async {
@@ -413,21 +438,21 @@ class ErpRepository {
         await _db
             .from('final_employees')
             .select(
-                'id, full_name, email, role, status, approval_status, department, joined_on')
+                'employee_id, full_name, email, role, status, approval_status, department, joined_on')
             .order('full_name', ascending: true));
 
-  Future<void> updateUserRole(String id, String role) async {
-    await _db.from('final_employees').update({'role': role}).eq('id', id);
+  Future<void> updateUserRole(String employeeId, String role) async {
+    await _db.from('final_employees').update({'role': role}).eq('employee_id', employeeId);
   }
 
-  Future<void> updateUserApproval(String id, String approvalStatus) async {
+  Future<void> updateUserApproval(String employeeId, String approvalStatus) async {
     await _db
         .from('final_employees')
-        .update({'approval_status': approvalStatus}).eq('id', id);
+        .update({'approval_status': approvalStatus}).eq('employee_id', employeeId);
   }
 
-  Future<void> updateUserStatus(String id, String status) async {
-    await _db.from('final_employees').update({'status': status}).eq('id', id);
+  Future<void> updateUserStatus(String employeeId, String status) async {
+    await _db.from('final_employees').update({'status': status}).eq('employee_id', employeeId);
   }
 
   // ── Notifications ────────────────────────────────────────────────
