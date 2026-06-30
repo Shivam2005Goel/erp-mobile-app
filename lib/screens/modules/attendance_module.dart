@@ -1,57 +1,333 @@
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'dart:io';
+import 'dart:math' show sin, cos, sqrt, atan2, pi;
 
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../app_state.dart';
 import '../../data/erp_repository.dart';
 import '../../widgets/erp_ui.dart';
 
-/// Attendance: daily check-in/out log grouped by date.
-class AttendanceModule extends StatelessWidget {
-  AttendanceModule({super.key});
-  final _repo = ErpRepository();
+// ── Office config ─────────────────────────────────────────────────────────────
+const _officeLat = 28.4929;
+const _officeLng = 77.1351;
+// Check-in cutoff: 11:00 AM IST = 05:30 UTC
+const _cutoffHourUtc = 5;
+const _cutoffMinuteUtc = 30;
+
+// ── Module ────────────────────────────────────────────────────────────────────
+class AttendanceModule extends StatefulWidget {
+  const AttendanceModule({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return AsyncSection<List<Map<String, dynamic>>>(
-      loader: _repo.attendance,
-      isEmpty: (d) => d.isEmpty,
-      emptyMessage: 'No attendance records.',
-      builder: (context, list, refresh) {
-        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-        final presentToday =
-            list.where((a) => a['date']?.toString() == today).length;
-        final lateCount = list
-            .where((a) => (num.tryParse('${a['late_by_minutes'] ?? 0}') ?? 0) > 0)
-            .length;
+  State<AttendanceModule> createState() => _AttendanceModuleState();
+}
 
-        // Group by date.
-        final byDate = <String, List<Map<String, dynamic>>>{};
-        for (final a in list) {
-          final d = a['date']?.toString() ?? 'Unknown';
-          byDate.putIfAbsent(d, () => []).add(a);
+class _AttendanceModuleState extends State<AttendanceModule> {
+  final _repo = ErpRepository();
+  List<Map<String, dynamic>> _records = [];
+  Map<String, dynamic>? _todayRecord;
+  bool _loading = true;
+  bool _marking = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final email =
+          AppStateScope.of(context).currentUser?.email ?? '';
+      final results = await Future.wait([
+        _repo.attendance(),
+        email.isNotEmpty
+            ? _repo.todayAttendanceForUser(email)
+            : Future.value(null),
+      ]);
+      if (mounted) {
+        setState(() {
+          _records = results[0] as List<Map<String, dynamic>>;
+          _todayRecord = results[1] as Map<String, dynamic>?;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  // ── Haversine distance in metres ──────────────────────────────────
+  static double _distanceTo(double lat, double lng) {
+    const r = 6371000.0;
+    final dlat = (_officeLat - lat) * pi / 180;
+    final dlon = (_officeLng - lng) * pi / 180;
+    final a = sin(dlat / 2) * sin(dlat / 2) +
+        cos(lat * pi / 180) *
+            cos(_officeLat * pi / 180) *
+            sin(dlon / 2) *
+            sin(dlon / 2);
+    return r * 2 * atan2(sqrt(a), sqrt(1 - a));
+  }
+
+  // ── Main mark-attendance flow ─────────────────────────────────────
+  Future<void> _markAttendance() async {
+    final user = AppStateScope.of(context).currentUser;
+    if (user == null) {
+      _snack('Please log in to mark attendance.');
+      return;
+    }
+
+    final isCheckIn = _todayRecord == null;
+    final isCheckOut =
+        _todayRecord != null && _todayRecord!['check_out_time'] == null;
+
+    if (!isCheckIn && !isCheckOut) {
+      _snack('Attendance already fully marked for today.');
+      return;
+    }
+
+    final label = isCheckIn ? 'Check In' : 'Check Out';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(label),
+        content: Text(
+          isCheckIn
+              ? 'Take a selfie and record your location to mark check-in.'
+              : 'Take a selfie and record your location to mark check-out.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: kBrand, foregroundColor: Colors.white),
+            child: Text(label),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _marking = true);
+    try {
+      // ── Step 1: Capture selfie ────────────────────────────────────
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 70,
+      );
+      if (photo == null || !mounted) {
+        setState(() => _marking = false);
+        return;
+      }
+
+      // ── Step 2: Get GPS location ──────────────────────────────────
+      Position? pos;
+      try {
+        LocationPermission perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) {
+          perm = await Geolocator.requestPermission();
         }
-        final dates = byDate.keys.toList()
-          ..sort((a, b) => b.compareTo(a));
+        if (perm != LocationPermission.denied &&
+            perm != LocationPermission.deniedForever) {
+          pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              timeLimit: Duration(seconds: 15),
+            ),
+          );
+        }
+      } catch (_) {
+        // GPS unavailable — proceed without location
+      }
 
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+      // ── Step 3: Upload selfie to storage ──────────────────────────
+      final bytes = await File(photo.path).readAsBytes();
+      final slug =
+          user.email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+      final date =
+          DateTime.now().toIso8601String().substring(0, 10);
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final type = isCheckIn ? 'in' : 'out';
+      final storagePath = '$slug/${date}_${type}_$ts.jpg';
+      String? photoPath;
+      try {
+        await Supabase.instance.client.storage
+            .from('attendance')
+            .uploadBinary(
+          storagePath,
+          bytes,
+          fileOptions: const FileOptions(
+              contentType: 'image/jpeg', upsert: true),
+        );
+        photoPath = 'attendance/$storagePath';
+      } catch (_) {
+        // Upload failed — mark attendance without photo
+      }
+
+      // ── Step 4: Compute metrics & write to DB ────────────────────
+      final lat = pos?.latitude;
+      final lng = pos?.longitude;
+      final distM =
+          (lat != null && lng != null) ? _distanceTo(lat, lng) : null;
+      final accuracy = pos?.accuracy;
+      final locationLabel = (lat != null && lng != null)
+          ? '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'
+              ' (±${accuracy?.toStringAsFixed(0) ?? '?'}m)'
+          : null;
+
+      if (isCheckIn) {
+        final nowUtc = DateTime.now().toUtc();
+        final cutoff = DateTime.utc(
+          nowUtc.year,
+          nowUtc.month,
+          nowUtc.day,
+          _cutoffHourUtc,
+          _cutoffMinuteUtc,
+        );
+        final lateMin = nowUtc.isAfter(cutoff)
+            ? nowUtc.difference(cutoff).inMinutes
+            : 0;
+
+        await _repo.markCheckIn(
+          email: user.email,
+          name: user.fullName,
+          lat: lat,
+          lng: lng,
+          photoPath: photoPath,
+          lateMinutes: lateMin,
+          distanceM: distM,
+          locationLabel: locationLabel,
+          status: lateMin > 0 ? 'Late' : 'Present',
+        );
+        if (mounted) _snack('Checked in successfully! ${lateMin > 0 ? '($lateMin min late)' : ''}');
+      } else {
+        final checkInTime = DateTime.tryParse(
+            _todayRecord!['check_in_time']?.toString() ?? '');
+        final deltaMin = checkInTime != null
+            ? DateTime.now().toUtc().difference(checkInTime).inMinutes
+            : null;
+
+        await _repo.markCheckOut(
+          id: _todayRecord!['id'].toString(),
+          lat: lat,
+          lng: lng,
+          photoPath: photoPath,
+          checkoutDelta: deltaMin,
+        );
+        if (mounted) _snack('Checked out successfully!');
+      }
+
+      if (mounted) await _load();
+    } catch (e) {
+      if (mounted) _snack('Failed: $e');
+    } finally {
+      if (mounted) setState(() => _marking = false);
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Failed: $_error'),
+          const SizedBox(height: 12),
+          ElevatedButton(onPressed: _load, child: const Text('Retry')),
+        ]),
+      );
+    }
+
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final presentToday =
+        _records.where((a) => a['date']?.toString() == today).length;
+    final lateCount = _records
+        .where((a) =>
+            (num.tryParse('${a['late_by_minutes'] ?? 0}') ?? 0) > 0)
+        .length;
+
+    final isDone = _todayRecord != null &&
+        _todayRecord!['check_out_time'] != null;
+
+    // Group records by date
+    final byDate = <String, List<Map<String, dynamic>>>{};
+    for (final a in _records) {
+      byDate.putIfAbsent(a['date']?.toString() ?? 'Unknown', () => []).add(a);
+    }
+    final dates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    return Stack(children: [
+      RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
-            MetricRow(children: [
-              MetricCard(
+            // ── Mark Attendance card ──────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: _MarkCard(
+                todayRecord: _todayRecord,
+                isDone: isDone,
+                marking: _marking,
+                onMark: _markAttendance,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Summary metrics ───────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: MetricRow(children: [
+                MetricCard(
                   label: 'Present Today',
                   value: '$presentToday',
                   icon: Icons.how_to_reg,
-                  color: const Color(0xFF16a34a)),
-              MetricCard(
-                  label: 'Records (300d)',
-                  value: '${list.length}',
-                  icon: Icons.event_available),
-              MetricCard(
+                  color: kSuccess,
+                ),
+                MetricCard(
+                  label: 'Records',
+                  value: '${_records.length}',
+                  icon: Icons.event_available,
+                ),
+                MetricCard(
                   label: 'Late Arrivals',
                   value: '$lateCount',
                   icon: Icons.running_with_errors,
-                  color: const Color(0xFFf59e0b)),
-            ]),
+                  color: kWarning,
+                ),
+              ]),
+            ),
             const SizedBox(height: 12),
+
+            // ── Daily log ─────────────────────────────────────────────
             for (final d in dates) ...[
               SectionTitle(fmtDate(d),
                   subtitle: '${byDate[d]!.length} present'),
@@ -59,7 +335,8 @@ class AttendanceModule extends StatelessWidget {
                 final late =
                     num.tryParse('${a['late_by_minutes'] ?? 0}') ?? 0;
                 return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 3, horizontal: 12),
                   child: ListTile(
                     dense: true,
                     leading: CircleAvatar(
@@ -69,19 +346,19 @@ class AttendanceModule extends StatelessWidget {
                           size: 18,
                           color: statusColor(a['status']?.toString())),
                     ),
-                    title: Text(str(a['employee_name'], a['employee_email'])),
+                    title:
+                        Text(str(a['employee_name'], a['employee_email'])),
                     subtitle: Text([
                       if (a['check_in_time'] != null)
-                        'In ${_time(a['check_in_time'])}',
+                        'In ${_fmt(a['check_in_time'])}',
                       if (a['check_out_time'] != null)
-                        'Out ${_time(a['check_out_time'])}',
+                        'Out ${_fmt(a['check_out_time'])}',
                       if ((a['location_label']?.toString().trim() ?? '')
                           .isNotEmpty)
                         a['location_label'],
                     ].join(' • ')),
                     trailing: late > 0
-                        ? StatusChip('Late ${late}m',
-                            color: const Color(0xFFf59e0b))
+                        ? StatusChip('Late ${late}m', color: kWarning)
                         : StatusChip(str(a['status'], 'present'),
                             color: statusColor(a['status']?.toString())),
                   ),
@@ -90,13 +367,138 @@ class AttendanceModule extends StatelessWidget {
               const SizedBox(height: 6),
             ],
           ],
-        );
-      },
-    );
+        ),
+      ),
+
+      // ── Loading overlay while marking ─────────────────────────────
+      if (_marking)
+        const ColoredBox(
+          color: Colors.black45,
+          child: Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 14),
+              Text('Marking attendance…',
+                  style: TextStyle(color: Colors.white, fontSize: 14)),
+            ]),
+          ),
+        ),
+    ]);
   }
 
-  static String _time(dynamic v) {
+  static String _fmt(dynamic v) {
     final d = DateTime.tryParse(v.toString());
     return d == null ? '' : DateFormat('HH:mm').format(d.toLocal());
+  }
+}
+
+// ── Mark Attendance Card ──────────────────────────────────────────────────────
+
+class _MarkCard extends StatelessWidget {
+  final Map<String, dynamic>? todayRecord;
+  final bool isDone;
+  final bool marking;
+  final VoidCallback onMark;
+
+  const _MarkCard({
+    required this.todayRecord,
+    required this.isDone,
+    required this.marking,
+    required this.onMark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCheckIn = todayRecord == null;
+    final isCheckOut =
+        todayRecord != null && todayRecord!['check_out_time'] == null;
+
+    late String title;
+    late String subtitle;
+    late IconData icon;
+    late Color color;
+
+    if (isDone) {
+      final inTime = DateTime.tryParse(
+          todayRecord!['check_in_time']?.toString() ?? '');
+      final outTime = DateTime.tryParse(
+          todayRecord!['check_out_time']?.toString() ?? '');
+      final inStr = inTime != null
+          ? DateFormat('HH:mm').format(inTime.toLocal())
+          : '—';
+      final outStr = outTime != null
+          ? DateFormat('HH:mm').format(outTime.toLocal())
+          : '—';
+      title = 'Attendance Complete';
+      subtitle = 'In $inStr • Out $outStr';
+      icon = Icons.check_circle;
+      color = kSuccess;
+    } else if (isCheckOut) {
+      final inTime = DateTime.tryParse(
+          todayRecord!['check_in_time']?.toString() ?? '');
+      final inStr = inTime != null
+          ? DateFormat('HH:mm').format(inTime.toLocal())
+          : '—';
+      title = 'Checked In at $inStr';
+      subtitle = 'Tap Check Out when you leave for the day';
+      icon = Icons.login;
+      color = const Color(0xFF0ea5e9);
+    } else {
+      title = 'Not Checked In';
+      subtitle = 'Take a selfie to mark your attendance';
+      icon = Icons.fingerprint;
+      color = kBrand;
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: const TextStyle(
+                        fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
+          if (!isDone) ...[
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: marking ? null : onMark,
+              icon: Icon(
+                isCheckIn ? Icons.camera_alt : Icons.logout,
+                size: 16,
+              ),
+              label: Text(
+                isCheckIn ? 'Check In' : 'Check Out',
+                style: const TextStyle(fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+              ),
+            ),
+          ],
+        ]),
+      ),
+    );
   }
 }

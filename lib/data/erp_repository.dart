@@ -298,6 +298,59 @@ class ErpRepository {
             .limit(300),
       );
 
+  Future<Map<String, dynamic>?> todayAttendanceForUser(String email) async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final rows = _rows(await _db
+        .from('attendance')
+        .select('*')
+        .eq('employee_email', email)
+        .eq('date', today)
+        .limit(1));
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<void> markCheckIn({
+    required String email,
+    required String name,
+    required double? lat,
+    required double? lng,
+    required String? photoPath,
+    required int lateMinutes,
+    required double? distanceM,
+    required String? locationLabel,
+    required String status,
+  }) async {
+    await _db.from('attendance').insert({
+      'employee_email': email,
+      'employee_name': name,
+      'date': DateTime.now().toIso8601String().substring(0, 10),
+      'check_in_time': DateTime.now().toUtc().toIso8601String(),
+      'status': status,
+      'photo_path': photoPath,
+      'latitude': lat,
+      'longitude': lng,
+      'location_label': locationLabel,
+      'late_by_minutes': lateMinutes > 0 ? lateMinutes : null,
+      'distance_m': distanceM,
+    });
+  }
+
+  Future<void> markCheckOut({
+    required String id,
+    required double? lat,
+    required double? lng,
+    required String? photoPath,
+    required int? checkoutDelta,
+  }) async {
+    await _db.from('attendance').update({
+      'check_out_time': DateTime.now().toUtc().toIso8601String(),
+      'check_out_photo_path': photoPath,
+      'check_out_latitude': lat,
+      'check_out_longitude': lng,
+      'checkout_delta_minutes': checkoutDelta,
+    }).eq('id', id);
+  }
+
   // ── Tickets ──────────────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> supportTickets() async => _rows(
         await _db
