@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math' show sin, cos, sqrt, atan2, pi;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -130,72 +131,46 @@ class _AttendanceModuleState extends State<AttendanceModule> {
 
     setState(() => _marking = true);
     try {
-      // ── Step 1: Capture selfie ────────────────────────────────────
+      // ── Step 1: Capture selfie (mandatory — abort if skipped) ─────
       final photo = await ImagePicker().pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.front,
-        imageQuality: 70,
+        imageQuality: 75,
+        maxWidth: 1280,
       );
       if (photo == null || !mounted) {
         setState(() => _marking = false);
         return;
       }
-
-      // ── Step 2: Get GPS location ──────────────────────────────────
-      Position? pos;
-      try {
-        LocationPermission perm = await Geolocator.checkPermission();
-        if (perm == LocationPermission.denied) {
-          perm = await Geolocator.requestPermission();
-        }
-        if (perm != LocationPermission.denied &&
-            perm != LocationPermission.deniedForever) {
-          pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.best,
-              timeLimit: Duration(seconds: 15),
-            ),
-          );
-        }
-      } catch (_) {
-        // GPS unavailable — proceed without location
-      }
-
-      // ── Step 3: Upload selfie to storage ──────────────────────────
       final bytes = await File(photo.path).readAsBytes();
-      final slug =
-          user.email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
-      final date =
-          DateTime.now().toIso8601String().substring(0, 10);
+
+      // ── Step 2: GPS + upload run in parallel ──────────────────────
+      _snack('Getting location & uploading photo…');
+
+      final posResult = await _getLocation();   // best-effort, never throws
+      final slug = user.email
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '_');
+      final date = DateTime.now().toIso8601String().substring(0, 10);
       final ts = DateTime.now().millisecondsSinceEpoch;
       final type = isCheckIn ? 'in' : 'out';
       final storagePath = '$slug/${date}_${type}_$ts.jpg';
-      String? photoPath;
-      try {
-        await Supabase.instance.client.storage
-            .from('attendance')
-            .uploadBinary(
-          storagePath,
-          bytes,
-          fileOptions: const FileOptions(
-              contentType: 'image/jpeg', upsert: true),
-        );
-        photoPath = 'attendance/$storagePath';
-      } catch (_) {
-        // Upload failed — mark attendance without photo
-      }
 
-      // ── Step 4: Compute metrics & write to DB ────────────────────
-      final lat = pos?.latitude;
-      final lng = pos?.longitude;
+      // ── Step 3: Upload with 3 retries — REQUIRED to proceed ───────
+      final photoPath =
+          await _uploadWithRetry(storagePath, bytes);   // throws on all failures
+
+      // ── Step 4: Compute metrics ───────────────────────────────────
+      final lat = posResult?.latitude;
+      final lng = posResult?.longitude;
       final distM =
           (lat != null && lng != null) ? _distanceTo(lat, lng) : null;
-      final accuracy = pos?.accuracy;
       final locationLabel = (lat != null && lng != null)
           ? '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'
-              ' (±${accuracy?.toStringAsFixed(0) ?? '?'}m)'
+              ' (±${posResult!.accuracy.toStringAsFixed(0)}m)'
           : null;
 
+      // ── Step 5: Write to DB ───────────────────────────────────────
       if (isCheckIn) {
         final nowUtc = DateTime.now().toUtc();
         final cutoff = DateTime.utc(
@@ -220,7 +195,11 @@ class _AttendanceModuleState extends State<AttendanceModule> {
           locationLabel: locationLabel,
           status: lateMin > 0 ? 'Late' : 'Present',
         );
-        if (mounted) _snack('Checked in successfully! ${lateMin > 0 ? '($lateMin min late)' : ''}');
+        if (mounted) {
+          _snack(lateMin > 0
+              ? 'Checked in — $lateMin min late'
+              : 'Checked in on time!');
+        }
       } else {
         final checkInTime = DateTime.tryParse(
             _todayRecord!['check_in_time']?.toString() ?? '');
@@ -240,10 +219,61 @@ class _AttendanceModuleState extends State<AttendanceModule> {
 
       if (mounted) await _load();
     } catch (e) {
-      if (mounted) _snack('Failed: $e');
+      if (mounted) {
+        _snack('Could not mark attendance: $e');
+      }
     } finally {
       if (mounted) setState(() => _marking = false);
     }
+  }
+
+  // ── GPS helper — best effort, never throws ───────────────────────
+  Future<Position?> _getLocation() async {
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        return null;
+      }
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── Upload with 3 retries + exponential backoff — THROWS if all fail ──
+  Future<String> _uploadWithRetry(String storagePath, List<int> bytes) async {
+    const maxAttempts = 3;
+    Object? lastError;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await Supabase.instance.client.storage
+            .from('attendance')
+            .uploadBinary(
+          storagePath,
+          Uint8List.fromList(bytes),
+          fileOptions: const FileOptions(
+              contentType: 'image/jpeg', upsert: true),
+        );
+        return 'attendance/$storagePath';
+      } catch (e) {
+        lastError = e;
+        if (attempt < maxAttempts) {
+          await Future<void>.delayed(Duration(seconds: attempt * 2));
+        }
+      }
+    }
+    throw Exception(
+        'Photo upload failed after $maxAttempts attempts. '
+        'Check your internet connection and try again.\n$lastError');
   }
 
   void _snack(String msg) {
